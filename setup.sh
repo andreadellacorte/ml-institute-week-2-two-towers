@@ -3,11 +3,12 @@
 if [[ ! -d ".venv" ]]; then
     python -m venv .venv
     source .venv/bin/activate
+    pip install --upgrade pip
 else
     echo ".venv already exists. Skipping virtual environment creation."
-    source .venv/bin/activate
 fi
 
+source .venv/bin/activate
 pip install --upgrade pip
 
 if [[ "$1" == "--gpu" ]]; then
