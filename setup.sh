@@ -53,7 +53,7 @@ if ! gh auth status &> /dev/null; then
     echo "gh CLI is not logged in. Logging in..."
     gh auth login
 else
-    echo "gh CLI is already logged in."
+    echo "gh CLI is already logged in as $(gh auth status | grep 'Logged in to' | awk '{print $3}')"
 fi
 
 # if virtual environment is not active, provide instructions
