@@ -1,36 +1,44 @@
 #bin/bash
 
+# Define color codes
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+RESET='\033[0m'
+
 # Save the value of $VIRTUAL_ENV at the top
 CURRENT_VIRTUAL_ENV="$VIRTUAL_ENV"
-echo "Current VIRTUAL_ENV: $CURRENT_VIRTUAL_ENV"
+echo -e "${CYAN}Current VIRTUAL_ENV: $CURRENT_VIRTUAL_ENV${RESET}"
 
 if [[ ! -d ".venv" ]]; then
+    echo -e "${YELLOW}Creating virtual environment...${RESET}"
     python -m venv .venv
-    source .venv/bin/activate
-    pip install --upgrade pip
 else
-    echo ".venv already exists. Skipping virtual environment creation."
+    echo -e "${GREEN}.venv already exists. Skipping virtual environment creation.${RESET}"
 fi
 
 source .venv/bin/activate
 pip install --upgrade pip
 
 if [[ "$1" == "--gpu" ]]; then
-    echo "GPU mode selected. Installing GPU-specific dependencies..."
+    echo -e "${BLUE}GPU mode selected. Installing GPU-specific dependencies...${RESET}"
     pip install -r requirements-gpu.txt
 elif [[ "$1" == "--cpu" ]]; then
-    echo "CPU mode selected. Installing CPU-specific dependencies..."
+    echo -e "${BLUE}CPU mode selected. Installing CPU-specific dependencies...${RESET}"
     pip install -r requirements-cpu.txt
 else
-    echo "Invalid parameter. Please use '--gpu' for GPU dependencies or '--cpu' for CPU dependencies."
+    echo -e "${RED}Invalid parameter. Please use '--gpu' for GPU dependencies or '--cpu' for CPU dependencies.${RESET}"
     exit 1
 fi
 
+echo -e "${CYAN}Logging into Weights & Biases...${RESET}"
 wandb login
 
 # Install gh CLI if not installed
 if ! command -v gh &> /dev/null; then
-    echo "gh CLI not found. Installing..."
+    echo -e "${YELLOW}gh CLI not found. Installing...${RESET}"
     if [[ "$OSTYPE" == "linux-gnu"* ]]; then
         (type -p wget >/dev/null || (apt update && apt-get install wget -y)) \
             && mkdir -p -m 755 /etc/apt/keyrings \
@@ -43,23 +51,23 @@ if ! command -v gh &> /dev/null; then
     elif [[ "$OSTYPE" == "darwin"* ]]; then
         brew install gh
     else
-        echo "Unsupported OS. Please install gh CLI manually."
+        echo -e "${RED}Unsupported OS. Please install gh CLI manually.${RESET}"
     fi
 else
-    echo "gh CLI is already installed."
+    echo -e "${GREEN}gh CLI is already installed.${RESET}"
 fi
 
 if ! gh auth status &> /dev/null; then
-    echo "gh CLI is not logged in. Logging in..."
+    echo -e "${YELLOW}gh CLI is not logged in. Logging in...${RESET}"
     gh auth login
 else
-    echo "gh CLI is already logged in as $(gh auth status | grep 'Logged in to' | awk '{print $3}')"
+    echo -e "${GREEN}gh CLI is already logged in as $(gh auth status | grep 'Logged in to' | awk '{print $3}')${RESET}"
 fi
 
 # if virtual environment is not active, provide instructions
 if [[ "$CURRENT_VIRTUAL_ENV" == "" ]]; then
-    echo "Virtual environment is not active. Please activate it using:"
-    echo "source .venv/bin/activate"
+    echo -e "${RED}Virtual environment is not active. Please activate it using:${RESET}"
+    echo -e "${CYAN}source .venv/bin/activate${RESET}"
 else
-    echo "Virtual environment is active and ready."
+    echo -e "${GREEN}Virtual environment is active and ready.${RESET}"
 fi
