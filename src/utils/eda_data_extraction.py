@@ -23,7 +23,7 @@ def main():
 
     dataset = load_dataset(dataset_id, dataset_version, split='train')
 
-    output_file = 'data/raw/ms_marco_5k.txt'  # Replace with your desired output file path
+    output_file = 'data/raw/ms_marco_eda.txt'  # Replace with your desired output file path
 
     extract_5k_lines(dataset, output_file)
 

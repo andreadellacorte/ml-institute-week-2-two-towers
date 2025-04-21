@@ -2,3 +2,4 @@ matplotlib
 datasets
 torch
 wandb
+numpy<2
