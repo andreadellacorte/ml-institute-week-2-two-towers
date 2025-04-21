@@ -49,7 +49,12 @@ else
     echo "gh CLI is already installed."
 fi
 
-gh auth login
+if ! gh auth status &> /dev/null; then
+    echo "gh CLI is not logged in. Logging in..."
+    gh auth login
+else
+    echo "gh CLI is already logged in."
+fi
 
 # if virtual environment is not active, provide instructions
 if [[ "$CURRENT_VIRTUAL_ENV" == "" ]]; then
