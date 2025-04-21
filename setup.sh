@@ -1,5 +1,9 @@
 #bin/bash
 
+# Save the value of $VIRTUAL_ENV at the top
+CURRENT_VIRTUAL_ENV="$VIRTUAL_ENV"
+echo "Current VIRTUAL_ENV: $CURRENT_VIRTUAL_ENV"
+
 if [[ ! -d ".venv" ]]; then
     python -m venv .venv
     source .venv/bin/activate
