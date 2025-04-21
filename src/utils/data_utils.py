@@ -76,8 +76,8 @@ def get_tokenised_dataset(dataset, min_frequency=None):
 
     for item in dataset:
         # Tokenize the query and passages (replace with actual tokenization logic)
-        tokenized_query = item["query"].split()  # Replace with actual tokenization
-        tokenized_passages = [passage.split() for passage in item["passages"]]  # Replace with actual tokenization
+        tokenized_query = item["query"].lower().split()  # Replace with actual tokenization
+        tokenized_passages = [passage.lower().split() for passage in item["passages"]]  # Replace with actual tokenization
 
         # Update word frequency
         for word in tokenized_query:
@@ -127,7 +127,7 @@ def get_tokenised_dataset(dataset, min_frequency=None):
 
     return result, reverse_result
 
-def get_corpus(clean_dataset):
+def get_corpus(clean_dataset, vocab_to_int):
     # Embed the number of lines in the file name
     num_lines = len(clean_dataset)
     cache_file = f"data/processed/ms_marco_corpus_{num_lines}_lines.json"
@@ -135,14 +135,19 @@ def get_corpus(clean_dataset):
     if not os.path.exists(cache_file):
         print(f"Cache file not found. Creating corpus and saving to {cache_file}...")
         corpus = []
-        # save each query + passages in one sentence
+        # Save each query + passages in one sentence
         for item in clean_dataset:
             # Join the query and passages into a single string
             corpus_item = f"{item['query']} {' '.join(item['passages'])}"
+            # Tokenize and replace words not in vocab_to_int with <UNK>
             corpus.append(corpus_item.split())
 
         # join all the sentences into one list
-        corpus = [word for sentence in corpus for word in sentence]
+        corpus = [
+            "<UNK>" if word not in vocab_to_int else word
+            for sentence in corpus
+            for word in sentence
+        ]
 
         with open(cache_file, "w") as f:
             json.dump(corpus, f, indent=4)

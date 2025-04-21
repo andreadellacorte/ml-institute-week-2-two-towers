@@ -1,18 +1,11 @@
 
 import torch
-from utils.data_utils import get_raw_dataset, get_clean_dataset, get_tokenised_dataset, get_corpus
-
-dataset_id = "microsoft/ms_marco"  # Replace with your input file path
-dataset_version = "v1.1"  # Replace with your desired dataset version
-max_lines = 500
-min_frequency = None  # Set the minimum frequency for tokenization
 
 class Marco(torch.utils.data.Dataset):
-  def __init__(self):
-    dataset = get_raw_dataset(dataset_id, dataset_version, max_lines)
-    clean_dataset = get_clean_dataset(dataset)
-    self.vocab_to_int, self.int_to_vocab = get_tokenised_dataset(clean_dataset, min_frequency)
-    self.corpus = get_corpus(clean_dataset)
+  def __init__(self, corpus, vocab_to_int, int_to_vocab):
+    self.corpus = corpus
+    self.vocab_to_int = vocab_to_int
+    self.int_to_vocab = int_to_vocab
     self.tokens = [self.vocab_to_int[word] for word in self.corpus]
 
   def __len__(self):
