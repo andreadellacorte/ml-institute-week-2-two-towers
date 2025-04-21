@@ -73,6 +73,21 @@ else
     echo -e "${GREEN}Git user name is already set.${RESET}"
 fi
 
+if ! gh auth status &> /dev/null; then
+    echo -e "${YELLOW}gh CLI is not logged in. Logging in...${RESET}"
+    gh auth login
+else
+    echo -e "${GREEN}gh CLI is already logged in as $(gh auth status | grep 'Logged in to' | awk '{print $3}')${RESET}"
+fi
+
+# if virtual environment is not active, provide instructions
+if [[ "$CURRENT_VIRTUAL_ENV" == "" ]]; then
+    echo -e "${RED}Virtual environment is not active. Please activate it using:${RESET}"
+    echo -e "${CYAN}source .venv/bin/activate${RESET}"
+else
+    echo -e "${GREEN}Virtual environment is active and ready.${RESET}"
+fi
+
 # Install zsh if not installed
 if ! command -v zsh &> /dev/null; then
     echo -e "${YELLOW}zsh not found. Installing...${RESET}"
@@ -88,18 +103,3 @@ else
 fi
 
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-
-if ! gh auth status &> /dev/null; then
-    echo -e "${YELLOW}gh CLI is not logged in. Logging in...${RESET}"
-    gh auth login
-else
-    echo -e "${GREEN}gh CLI is already logged in as $(gh auth status | grep 'Logged in to' | awk '{print $3}')${RESET}"
-fi
-
-# if virtual environment is not active, provide instructions
-if [[ "$CURRENT_VIRTUAL_ENV" == "" ]]; then
-    echo -e "${RED}Virtual environment is not active. Please activate it using:${RESET}"
-    echo -e "${CYAN}source .venv/bin/activate${RESET}"
-else
-    echo -e "${GREEN}Virtual environment is active and ready.${RESET}"
-fi
