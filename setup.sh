@@ -1,10 +1,14 @@
 #bin/bash
 
-rm -rf .venv
+if [[ ! -d ".venv" ]]; then
+    python -m venv .venv
+    source .venv/bin/activate
+else
+    echo ".venv already exists. Skipping virtual environment creation."
+    source .venv/bin/activate
+fi
 
-python -m venv .venv
-
-source .venv/bin/activate
+pip install --upgrade pip
 
 if [[ "$1" == "--gpu" ]]; then
     echo "GPU mode selected. Installing GPU-specific dependencies..."
@@ -19,4 +23,10 @@ fi
 
 wandb login
 
-echo "now run 'source .venv/bin/activate'"
+# if virtual environment is not active, provide instructions
+if [[ "$VIRTUAL_ENV" == "" ]]; then
+    echo "Virtual environment is not active. Please activate it using:"
+    echo "source .venv/bin/activate"
+else
+    echo "Virtual environment is active and ready."
+fi
