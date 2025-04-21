@@ -29,7 +29,7 @@ fi
 wandb login
 
 # if virtual environment is not active, provide instructions
-if [[ "$VIRTUAL_ENV" == "" ]]; then
+if [[ "$CURRENT_VIRTUAL_ENV" == "" ]]; then
     echo "Virtual environment is not active. Please activate it using:"
     echo "source .venv/bin/activate"
 else
