@@ -1,4 +1,4 @@
-#bin/bash
+#!/bin/bash
 
 # Define color codes
 RED='\033[0;31m'
@@ -56,6 +56,38 @@ if ! command -v gh &> /dev/null; then
 else
     echo -e "${GREEN}gh CLI is already installed.${RESET}"
 fi
+
+# Automate git config --global user.email and git config --global user.name
+if ! git config --global user.email &> /dev/null; then
+    echo -e "${YELLOW}Setting up git user email...${RESET}"
+    read -p "Enter your GitHub email: " GIT_EMAIL
+    git config --global user.email "$GIT_EMAIL"
+else
+    echo -e "${GREEN}Git user email is already set.${RESET}"
+fi
+if ! git config --global user.name &> /dev/null; then
+    echo -e "${YELLOW}Setting up git user name...${RESET}"
+    read -p "Enter your GitHub username: " GIT_USERNAME
+    git config --global user.name "$GIT_USERNAME"
+else
+    echo -e "${GREEN}Git user name is already set.${RESET}"
+fi
+
+# Install zsh if not installed
+if ! command -v zsh &> /dev/null; then
+    echo -e "${YELLOW}zsh not found. Installing...${RESET}"
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        apt install zsh -y
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        brew install zsh
+    else
+        echo -e "${RED}Unsupported OS. Please install zsh manually.${RESET}"
+    fi
+else
+    echo -e "${GREEN}zsh is already installed.${RESET}"
+fi
+
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 
 if ! gh auth status &> /dev/null; then
     echo -e "${YELLOW}gh CLI is not logged in. Logging in...${RESET}"
