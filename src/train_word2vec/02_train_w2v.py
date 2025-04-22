@@ -75,7 +75,7 @@ for epoch in range(5):
         evaluate.topk(mFoo, vocab_to_int, int_to_vocab)
 
   # checkpoint
-  checkpoint_name = f'{ts}.cbow.{len(dFoo)}lines.{embedding_dim}embeddings.{min_frequency}minfreq.{epoch + 1}.pth'
+  checkpoint_name = f'{ts}.cbow.{len(dFoo)}lines.{embedding_dim}embeddings.{min_frequency}minfreq.{epoch + 1}epochs.pth'
   torch.save(mFoo.state_dict(), f'./data/checkpoints/{checkpoint_name}')
   artifact = wandb.Artifact('model-weights', type='model')
   artifact.add_file(f'./data/checkpoints/{checkpoint_name}')

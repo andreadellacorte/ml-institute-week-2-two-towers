@@ -2,9 +2,8 @@ from huggingface_hub import HfApi, HfFolder
 
 # Define the file paths and repository details
 file_paths = [
-    "data/checkpoints/2025_04_22__10_39_19.5.cbow.pth",
-    "data/processed/ms_marco_tkn_word_to_ids_82326_lines_minfreq_5.json",
-    "data/processed/ms_marco_tkn_ids_to_words_82326_lines_minfreq_5.json"
+    "data/checkpoints/cbow.82326lines.256embeddings.5minfreq.5epochs.pth",
+    "data/checkpoints/cbow.500lines.256embeddings.0minfreq.5epochs.pth",
 ]
 
 repo_id = "andreadellacorte/ml-institute-week-2-two-towers"  # Replace with your Hugging Face repo

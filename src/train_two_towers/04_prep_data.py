@@ -17,40 +17,6 @@ max_lines = None
 min_frequency = 5  # Set the minimum frequency for tokenization
 embedding_dim = 256
 
-# Load the dataset
-
-class QueryTower(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.fc1 = torch.nn.Linear(in_features=128, out_features=64)
-        self.fc2 = torch.nn.Linear(in_features=64, out_features=32)
-        self.fc3 = torch.nn.Linear(in_features=32, out_features=16)
-        self.fc4 = torch.nn.Linear(in_features=16, out_features=1)
-        self.relu = torch.nn.ReLU()
-
-    def forward(self, inpt):
-        x = self.relu(self.fc1(inpt))
-        x = self.relu(self.fc2(x))
-        x = self.relu(self.fc3(x))
-        out = self.fc4(x)
-        return out
-
-class DocTower(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.fc1 = torch.nn.Linear(in_features=128, out_features=64)
-        self.fc2 = torch.nn.Linear(in_features=64, out_features=32)
-        self.fc3 = torch.nn.Linear(in_features=32, out_features=16)
-        self.fc4 = torch.nn.Linear(in_features=16, out_features=1)
-        self.relu = torch.nn.ReLU()
-
-    def forward(self, inpt):
-        x = self.relu(self.fc1(inpt))
-        x = self.relu(self.fc2(x))
-        x = self.relu(self.fc3(x))
-        out = self.fc4(x)
-        return out
-
 def main():
     dFoo = get_raw_dataset(dataset_id, dataset_version, max_lines)
     clean_dataset = get_clean_dataset(dFoo)
@@ -71,7 +37,7 @@ def main():
 
     # load the '2025_04_22__10_39_19.4.cbow.pth' model
     # use the model.CBOW file and also load the embeddings
-    model_path = "data/checkpoints/2025_04_22__10_39_19.5.cbow.pth"
+    model_path = f"data/checkpoints/cbow.{max_lines}lines.{embedding_dim}embeddings.{min_frequency}minfreq.5.pth"
 
     print(f"Loading model from {model_path}...")
     
@@ -87,7 +53,18 @@ def main():
             row['query'][i] = cbow.emb.weight[id].detach()
         # average all the tensors in row['query'] into one
         row['query'] = torch.mean(torch.stack(row['query']), dim=0).unsqueeze(0)
+        for i, passage in enumerate(row["passages"]):
+            for j, id in enumerate(passage):
+                passage[j] = cbow.emb.weight[id].detach()
+            # average all the tensors in passage into one
+            row["passages"][i] = torch.mean(torch.stack(passage), dim=0).unsqueeze(0)
     
+    # Convert tensors to lists for JSON serialization
+    for row in clean_dataset:
+        row['query'] = row['query'].squeeze(0).tolist()
+        for i, passage in enumerate(row['passages']):
+            row['passages'][i] = passage.squeeze(0).tolist()
+
     clean_dataset_embeddings_file = f"data/processed/ms_marco_clean_embeddings_{max_lines}_lines_minfreq_{min_frequency}.json"
 
     with open(clean_dataset_embeddings_file, "w") as f:
