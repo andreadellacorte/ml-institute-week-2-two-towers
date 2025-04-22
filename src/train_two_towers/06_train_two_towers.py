@@ -68,11 +68,18 @@ def main():
 
     print(len(training_data))
 
+    torch.manual_seed(42)
+    dev = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     dFoo = dataset.MarcoTWOTOWERS(training_data)
-    dataloader = torch.utils.data.DataLoader(dFoo, batch_size=1, shuffle=True)
+    dataloader = torch.utils.data.DataLoader(dFoo, batch_size=32, shuffle=True)
     
     docTower = DocTower()
     queryTower = QueryTower()
+
+    docTower.to(dev)
+    queryTower.to(dev)
+    
     optimizer = torch.optim.Adam(list(docTower.parameters()) + list(queryTower.parameters()), lr=0.001)
     
     epochs = 5
@@ -82,6 +89,11 @@ def main():
         total_loss = 0.0
 
         for i, (query, relevant_doc, irrelevant_doc) in enumerate(prgs):
+
+            query = query.to(dev)
+            relevant_doc = relevant_doc.to(dev)
+            irrelevant_doc = irrelevant_doc.to(dev)
+
             query = queryTower(query)
             pos = docTower(relevant_doc)
             neg = docTower(irrelevant_doc)
