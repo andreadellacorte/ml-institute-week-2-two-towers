@@ -13,9 +13,10 @@ from train_word2vec import model as model_cbow
 
 dataset_id = "microsoft/ms_marco"  # Replace with your input file path
 dataset_version = "v1.1"  # Replace with your desired dataset version
-max_lines = None
+max_lines = 82326  # Set the maximum number of lines to read from the dataset
 min_frequency = 5  # Set the minimum frequency for tokenization
 embedding_dim = 256
+epochs = 5
 
 def main():
     dFoo = get_raw_dataset(dataset_id, dataset_version, max_lines)
@@ -37,7 +38,7 @@ def main():
 
     # load the '2025_04_22__10_39_19.4.cbow.pth' model
     # use the model.CBOW file and also load the embeddings
-    model_path = f"data/checkpoints/cbow.{max_lines}lines.{embedding_dim}embeddings.{min_frequency}minfreq.5.pth"
+    model_path = f"./data/checkpoints/cbow.{max_lines}lines.{embedding_dim}embeddings.{min_frequency}minfreq.{epochs}epochs.pth"
 
     print(f"Loading model from {model_path}...")
     
@@ -66,10 +67,35 @@ def main():
             for i, passage in enumerate(row['passages']):
                 row['passages'][i] = passage.squeeze(0).tolist()
 
-        clean_dataset_embeddings_file = f"data/processed/ms_marco_clean_embeddings_{max_lines}_lines_minfreq_{min_frequency}.json"
+        clean_dataset_embeddings_file = f"./data/processed/ms_marco_clean_embeddings_{max_lines}_lines_minfreq_{min_frequency}.json"
 
         with open(clean_dataset_embeddings_file, "w") as f:
             json.dump(clean_dataset, f, indent=4)
 
+        # upload the file to hugging face
+
+        from huggingface_hub import HfApi, HfFolder
+
+        # Define the file paths and repository details
+        file_paths = [
+            clean_dataset_embeddings_file
+        ]
+
+        repo_id = "andreadellacorte/ml-institute-week-2-two-towers"  # Replace with your Hugging Face repo
+        commit_message = "Upload checkpoint files"
+
+        # Authenticate with Hugging Face
+        api = HfApi()
+        token = HfFolder.get_token()  # Ensure you have logged in using `huggingface-cli login`
+
+        # Upload the files
+        for file_path in file_paths:
+            api.upload_file(
+                path_or_fileobj=file_path,
+                path_in_repo=file_path,  # Keep relative path in repo
+                repo_id=repo_id,
+                repo_type="model",  # Change to "dataset" if uploading to a dataset repo
+                commit_message=commit_message,
+            )
 if __name__ == "__main__":
     main()
