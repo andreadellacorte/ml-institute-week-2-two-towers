@@ -8,7 +8,7 @@ min_frequency = None  # Set the minimum frequency for tokenization
 def main():
     dataset = get_raw_dataset(dataset_id, dataset_version, max_lines)
     clean_dataset = get_clean_dataset(dataset)
-    vocab_to_int, int_to_vocab = get_tokenised_dataset(clean_dataset, min_frequency)
+    get_tokenised_dataset(clean_dataset, min_frequency)
 
 if __name__ == "__main__":
     main()

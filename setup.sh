@@ -33,8 +33,22 @@ else
     exit 1
 fi
 
-echo -e "${CYAN}Logging into Weights & Biases...${RESET}"
-wandb login
+echo -e "${CYAN}Checking Weights & Biases login status...${RESET}"
+if ! wandb whoami &> /dev/null; then
+    echo -e "${YELLOW}Not logged into Weights & Biases. Logging in...${RESET}"
+    wandb login
+else
+    echo -e "${GREEN}Already logged into Weights & Biases as $(wandb whoami | awk '{print $NF}')${RESET}"
+fi
+
+echo -e "${CYAN}Checking Hugging Face login status...${RESET}"
+if ! huggingface-cli whoami &> /dev/null; then
+    echo -e "${YELLOW}Not logged into Hugging Face. Logging in...${RESET}"
+    git config --global credential.helper store
+    huggingface-cli login
+else
+    echo -e "${GREEN}Already logged into Hugging Face as $(huggingface-cli whoami | grep 'Username' | awk '{print $2}')${RESET}"
+fi
 
 # Install gh CLI if not installed
 if ! command -v gh &> /dev/null; then

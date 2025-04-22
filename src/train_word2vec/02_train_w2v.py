@@ -4,14 +4,19 @@ import torch
 import dataset
 import evaluate
 import datetime
+import sys
+import os
 import model as model
+
+# Add the parent directory of 'src' to the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
 from utils.data_utils import get_raw_dataset, get_clean_dataset, get_tokenised_dataset, get_corpus
 
 dataset_id = "microsoft/ms_marco"
 dataset_version = "v1.1"
-max_lines = None
-min_frequency = 5
+max_lines = 500
+min_frequency = 0
 embedding_dim = 256
 batch_size = 4096
 learning_rate = 0.003
@@ -25,7 +30,7 @@ clean_dataset = get_clean_dataset(dFoo)
 vocab_to_int, int_to_vocab = get_tokenised_dataset(clean_dataset, min_frequency)
 corpus = get_corpus(clean_dataset, vocab_to_int, min_frequency)
 
-ds = dataset.Marco(corpus, vocab_to_int, int_to_vocab)
+ds = dataset.MarcoCBOW(corpus, vocab_to_int, int_to_vocab)
 dl = torch.utils.data.DataLoader(dataset=ds, batch_size=batch_size)
 
 mFoo = model.CBOW(len(vocab_to_int), embedding_dim)
@@ -70,10 +75,10 @@ for epoch in range(5):
         evaluate.topk(mFoo, vocab_to_int, int_to_vocab)
 
   # checkpoint
-  checkpoint_name = f'{ts}.{epoch + 1}.cbow.pth'
-  torch.save(mFoo.state_dict(), f'./checkpoints/{checkpoint_name}')
+  checkpoint_name = f'{ts}.cbow.{len(dFoo)}lines.{embedding_dim}embeddings.{min_frequency}minfreq.{epoch + 1}.pth'
+  torch.save(mFoo.state_dict(), f'./data/checkpoints/{checkpoint_name}')
   artifact = wandb.Artifact('model-weights', type='model')
-  artifact.add_file(f'./checkpoints/{checkpoint_name}')
+  artifact.add_file(f'./data/checkpoints/{checkpoint_name}')
   wandb.log_artifact(artifact)
 
 

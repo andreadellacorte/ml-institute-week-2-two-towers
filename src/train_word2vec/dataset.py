@@ -1,7 +1,6 @@
-
 import torch
 
-class Marco(torch.utils.data.Dataset):
+class MarcoCBOW(torch.utils.data.Dataset):
   def __init__(self, corpus, vocab_to_int, int_to_vocab):
     self.corpus = corpus
     self.vocab_to_int = vocab_to_int
@@ -19,6 +18,7 @@ class Marco(torch.utils.data.Dataset):
     if len(nex) < 2: nex = nex + [0] * (2 - len(nex))
     return torch.tensor(prv + nex), torch.tensor([ipt])
 
+# Test Suite
 if __name__ == '__main__':
   ds = Marco()
   print(ds.tokens[:15])

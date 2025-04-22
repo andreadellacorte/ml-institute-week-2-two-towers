@@ -36,6 +36,7 @@ def get_clean_dataset(dataset):
         cleaned_data = []
         for item in dataset:
             # Clean the dataset by removing unnecessary fields
+            
             cleaned_item = {
                 "query": re.sub('\W+',' ', item["query"]),
                 "passages": [re.sub('\W+',' ', passage) for passage in item["passages"]["passage_text"]],

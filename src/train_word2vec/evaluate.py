@@ -1,6 +1,3 @@
-#
-#
-#
 import torch
 
 def topk(mFoo, vocab_to_int, int_to_vocab):

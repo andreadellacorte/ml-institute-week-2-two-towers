@@ -1,12 +1,5 @@
-#
-#
-#
 import torch
 
-
-#
-#
-#
 class CBOW(torch.nn.Module):
   def __init__(self, voc, emb):
     super().__init__()
@@ -19,31 +12,7 @@ class CBOW(torch.nn.Module):
     out = self.ffw(emb)
     return out
 
-
-#
-#
-#
-class Regressor(torch.nn.Module):
-  def __init__(self):
-    super().__init__()
-    self.seq = torch.nn.Sequential(
-      torch.nn.Linear(in_features=128, out_features=64),
-      torch.nn.ReLU(),
-      torch.nn.Linear(in_features=64, out_features=32),
-      torch.nn.ReLU(),
-      torch.nn.Linear(in_features=32, out_features=16),
-      torch.nn.ReLU(),
-      torch.nn.Linear(in_features=16, out_features=1),
-    )
-
-  def forward(self, inpt):
-    out = self.seq(inpt)
-    return out
-
-
-#
-#
-#
+# Test Suite
 if __name__ == '__main__':
   model = CBOW(128, 8)
   print('CBOW:', model)
