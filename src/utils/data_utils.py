@@ -109,7 +109,7 @@ def get_tokenised_dataset(dataset, min_frequency=None):
         result = words
 
     # Add special tokens
-    result["<UNK>"] = -1
+    result["<UNK>"] = len(result)
 
     # Save the tokenized dataset to a cache file
     with open(cache_file, "w") as f:
