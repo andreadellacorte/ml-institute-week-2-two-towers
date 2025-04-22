@@ -47,28 +47,29 @@ def main():
 
     print(f"Model loaded from {model_path}")
 
-    # call split on row["query"] and convert each item to embeddings with model
-    for row in clean_dataset:
-        for i, id in enumerate(row["query"]):
-            row['query'][i] = cbow.emb.weight[id].detach()
-        # average all the tensors in row['query'] into one
-        row['query'] = torch.mean(torch.stack(row['query']), dim=0).unsqueeze(0)
-        for i, passage in enumerate(row["passages"]):
-            for j, id in enumerate(passage):
-                passage[j] = cbow.emb.weight[id].detach()
-            # average all the tensors in passage into one
-            row["passages"][i] = torch.mean(torch.stack(passage), dim=0).unsqueeze(0)
-    
-    # Convert tensors to lists for JSON serialization
-    for row in clean_dataset:
-        row['query'] = row['query'].squeeze(0).tolist()
-        for i, passage in enumerate(row['passages']):
-            row['passages'][i] = passage.squeeze(0).tolist()
+    with torch.no_grad():
+        # call split on row["query"] and convert each item to embeddings with model
+        for row in clean_dataset:
+            for i, id in enumerate(row["query"]):
+                row['query'][i] = cbow.emb.weight[id].detach()
+            # average all the tensors in row['query'] into one
+            row['query'] = torch.mean(torch.stack(row['query']), dim=0).unsqueeze(0)
+            for i, passage in enumerate(row["passages"]):
+                for j, id in enumerate(passage):
+                    passage[j] = cbow.emb.weight[id].detach()
+                # average all the tensors in passage into one
+                row["passages"][i] = torch.mean(torch.stack(passage), dim=0).unsqueeze(0)
+        
+        # Convert tensors to lists for JSON serialization
+        for row in clean_dataset:
+            row['query'] = row['query'].squeeze(0).tolist()
+            for i, passage in enumerate(row['passages']):
+                row['passages'][i] = passage.squeeze(0).tolist()
 
-    clean_dataset_embeddings_file = f"data/processed/ms_marco_clean_embeddings_{max_lines}_lines_minfreq_{min_frequency}.json"
+        clean_dataset_embeddings_file = f"data/processed/ms_marco_clean_embeddings_{max_lines}_lines_minfreq_{min_frequency}.json"
 
-    with open(clean_dataset_embeddings_file, "w") as f:
-        json.dump(clean_dataset, f, indent=4)
+        with open(clean_dataset_embeddings_file, "w") as f:
+            json.dump(clean_dataset, f, indent=4)
 
 if __name__ == "__main__":
     main()
