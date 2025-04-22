@@ -14,9 +14,7 @@ class CBOW(torch.nn.Module):
     self.ffw = torch.nn.Linear(in_features=emb, out_features=voc, bias=False)
 
   def forward(self, inpt):
-    print(f"inpt shape: {inpt.shape}")  # Debug input shape
     emb = self.emb(inpt)
-    print(f"emb shape: {emb.shape}")  # Debug embedding shape
     emb = emb.mean(dim=1)
     out = self.ffw(emb)
     return out
