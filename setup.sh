@@ -22,6 +22,8 @@ fi
 source .venv/bin/activate
 pip install --upgrade pip
 
+pip install -e .
+
 if [[ "$1" == "--gpu" ]]; then
     echo -e "${BLUE}GPU mode selected. Installing GPU-specific dependencies...${RESET}"
     pip install -r requirements-gpu.txt

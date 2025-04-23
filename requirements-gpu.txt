@@ -3,3 +3,4 @@ datasets
 torch==2.6.0
 wandb
 huggingface_hub[cli]
+sortedcontainers

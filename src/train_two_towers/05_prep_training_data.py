@@ -31,7 +31,6 @@ def main():
             training_data.append({
                 "query": row["query"],
                 "relevant_doc": relevant_passage,
-                # select a random passage from a random different query
                 "irrelevant_doc": irrelevant_passage
             })
 

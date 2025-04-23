@@ -1,11 +1,5 @@
 import json
 import torch
-import sys
-import os
-
-# Add the parent directory of 'src' to the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
-
 from utils.data_utils import get_raw_dataset, get_clean_dataset, get_tokenised_dataset
 from train_word2vec import model as model_cbow
 
@@ -13,8 +7,8 @@ from train_word2vec import model as model_cbow
 
 dataset_id = "microsoft/ms_marco"  # Replace with your input file path
 dataset_version = "v1.1"  # Replace with your desired dataset version
-max_lines = 82326  # Set the maximum number of lines to read from the dataset
-min_frequency = 5  # Set the minimum frequency for tokenization
+max_lines = 500  # Set the maximum number of lines to read from the dataset
+min_frequency = 0  # Set the minimum frequency for tokenization
 embedding_dim = 256
 epochs = 5
 
@@ -50,16 +44,23 @@ def main():
 
     with torch.no_grad():
         # call split on row["query"] and convert each item to embeddings with model
+        def process_query(query, cbow):
+            query_embeddings = [cbow.emb.weight[id].detach() for id in query]
+            return torch.mean(torch.stack(query_embeddings), dim=0).unsqueeze(0)
+
+        def process_passages(passages, cbow):
+            processed_passages = []
+            for passage in passages:
+                passage_mean = torch.zeros(cbow.emb.weight.size(1))
+                for i, id in enumerate(passage):
+                    passage_mean += (cbow.emb.weight[id].detach() - passage_mean) / (i + 1)
+                passage_mean = passage_mean.unsqueeze(0)
+                processed_passages.append(passage_mean)
+            return processed_passages
+
         for row in clean_dataset:
-            for i, id in enumerate(row["query"]):
-                row['query'][i] = cbow.emb.weight[id].detach()
-            # average all the tensors in row['query'] into one
-            row['query'] = torch.mean(torch.stack(row['query']), dim=0).unsqueeze(0)
-            for i, passage in enumerate(row["passages"]):
-                for j, id in enumerate(passage):
-                    passage[j] = cbow.emb.weight[id].detach()
-                # average all the tensors in passage into one
-                row["passages"][i] = torch.mean(torch.stack(passage), dim=0).unsqueeze(0)
+            row['query'] = process_query(row["query"], cbow)
+            row["passages"] = process_passages(row["passages"], cbow)
         
         # Convert tensors to lists for JSON serialization
         for row in clean_dataset:

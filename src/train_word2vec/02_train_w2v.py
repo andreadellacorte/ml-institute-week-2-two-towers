@@ -4,12 +4,7 @@ import torch
 import dataset
 import evaluate
 import datetime
-import sys
-import os
 import model as model
-
-# Add the parent directory of 'src' to the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
 from utils.data_utils import get_raw_dataset, get_clean_dataset, get_tokenised_dataset, get_corpus
 

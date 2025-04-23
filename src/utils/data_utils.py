@@ -38,8 +38,8 @@ def get_clean_dataset(dataset):
             # Clean the dataset by removing unnecessary fields
             
             cleaned_item = {
-                "query": re.sub('\W+',' ', item["query"]),
-                "passages": [re.sub('\W+',' ', passage) for passage in item["passages"]["passage_text"]],
+                "query": re.sub('\W+', ' ', item["query"]).lower(),
+                "passages": [re.sub('\W+', ' ', passage).lower() for passage in item["passages"]["passage_text"]],
             }
             cleaned_data.append(cleaned_item)
         
@@ -53,12 +53,12 @@ def get_clean_dataset(dataset):
 
     return cleaned_dataset
 
-def get_tokenised_dataset(dataset, min_frequency=None):
+def get_tokenised_dataset(clean_dataset, min_frequency=0):
     # Check if we already have a tokenized dataset with the same number of lines
-    num_lines = len(dataset)
+    num_lines = len(clean_dataset)
     
-    cache_file = f"data/processed/ms_marco_tkn_word_to_ids_{num_lines}_lines_minfreq_{min_frequency if min_frequency else 'none'}.json"
-    reverse_cache_file = f"data/processed/ms_marco_tkn_ids_to_words_{num_lines}_lines_minfreq_{min_frequency if min_frequency else 'none'}.json"
+    cache_file = f"data/processed/ms_marco_tkn_word_to_ids_{num_lines}_lines_minfreq_{min_frequency}.json"
+    reverse_cache_file = f"data/processed/ms_marco_tkn_ids_to_words_{num_lines}_lines_minfreq_{min_frequency}.json"
     
     if os.path.exists(cache_file):
         print(f"Cache file found at {cache_file}. Using cached tokenized dataset.")
@@ -75,7 +75,7 @@ def get_tokenised_dataset(dataset, min_frequency=None):
     
     word_frequency = {}
 
-    for item in dataset:
+    for item in clean_dataset:
         # Tokenize the query and passages (replace with actual tokenization logic)
         tokenized_query = item["query"].lower().split()  # Replace with actual tokenization
         tokenized_passages = [passage.lower().split() for passage in item["passages"]]  # Replace with actual tokenization
@@ -87,8 +87,12 @@ def get_tokenised_dataset(dataset, min_frequency=None):
             for word in passage:
                 word_frequency[word] = word_frequency.get(word, 0) + 1
 
+    # throw error if min_frequency is less than 0
+    if min_frequency < 0:
+        raise ValueError("min_frequency must be greater than or equal to 0")
+
     # Filter words based on min_frequency
-    if min_frequency is not None:
+    if min_frequency > 0:
         filtered_word_frequency = {word: freq for word, freq in word_frequency.items() if freq >= min_frequency}
         remaining_words = {word: idx for idx, word in enumerate(filtered_word_frequency.keys())}
         removed_words_count = len(word_frequency) - len(filtered_word_frequency)

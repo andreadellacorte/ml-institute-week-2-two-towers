@@ -5,6 +5,7 @@ def topk(mFoo, vocab_to_int, int_to_vocab):
   idx = vocab_to_int['computer']
   vec = mFoo.emb.weight[idx].detach()
   with torch.no_grad():
+    
 
     vec = torch.nn.functional.normalize(vec.unsqueeze(0), p=2, dim=1)
     emb = torch.nn.functional.normalize(mFoo.emb.weight.detach(), p=2, dim=1)
