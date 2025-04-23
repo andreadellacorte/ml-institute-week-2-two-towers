@@ -42,12 +42,12 @@ else
 fi
 
 echo -e "${CYAN}Checking Hugging Face login status...${RESET}"
-if ! huggingface-cli whoami &> /dev/null || [[ -z "$(huggingface-cli whoami | grep 'Username')" ]]; then
+if huggingface-cli whoami | grep -q "Not logged in"; then
     echo -e "${YELLOW}Not logged into Hugging Face. Logging in...${RESET}"
     git config --global credential.helper store
     huggingface-cli login
 else
-    echo -e "${GREEN}Already logged into Hugging Face as $(huggingface-cli whoami | grep 'Username' | awk '{print $2}')${RESET}"
+    echo -e "${GREEN}Already logged into Hugging Face as $(huggingface-cli whoami)${RESET}"
 fi
 
 # Install gh CLI if not installed
