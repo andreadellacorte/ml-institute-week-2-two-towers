@@ -1,16 +1,17 @@
+from config import *
+
 import json
 import torch
+from huggingface_hub import HfApi, HfFolder
+from tqdm import tqdm
+
 from utils.data_utils import get_raw_dataset, get_clean_dataset, get_tokenised_dataset
-from train_word2vec import model as model_cbow
 
-# Import the dataset and needed classes
+from train_word2vec.model import CBOW
 
-dataset_id = "microsoft/ms_marco"  # Replace with your input file path
-dataset_version = "v1.1"  # Replace with your desired dataset version
-max_lines = 500  # Set the maximum number of lines to read from the dataset
-min_frequency = 0  # Set the minimum frequency for tokenization
-embedding_dim = 256
-epochs = 5
+model_path = f"./data/checkpoints/2025_04_22__12_00_00/cbow.{max_lines}lines.{embedding_dim}embeddings.{min_frequency}minfreq.5epochs.pth"
+clean_dataset_tokenised_file = f"data/processed/ms_marco_clean_tokenised_{max_lines}_lines_minfreq_{min_frequency}.json"
+clean_dataset_embeddings_file = f"./data/processed/ms_marco_clean_embeddings_{max_lines}_lines_minfreq_{min_frequency}.json"
 
 def main():
     dFoo = get_raw_dataset(dataset_id, dataset_version, max_lines)
@@ -22,25 +23,25 @@ def main():
     for row in clean_dataset:
         row["query"] = [vocab_to_int[word] if word in vocab_to_int else vocab_to_int["<UNK>"] for word in row["query"].split()]
         row["passages"] = [[vocab_to_int[word] if word in vocab_to_int else vocab_to_int["<UNK>"] for word in passage.split()] for passage in row["passages"]]
-    
-    clean_dataset_tokenised_file = f"data/processed/ms_marco_clean_tokenised_{max_lines}_lines_minfreq_{min_frequency}.json"
 
     with open(clean_dataset_tokenised_file, "w") as f:
         json.dump(clean_dataset, f, indent=4)
         
     print(f"Tokenised dataset saved to {clean_dataset_tokenised_file}")
 
-    # load the '2025_04_22__10_39_19.4.cbow.pth' model
-    # use the model.CBOW file and also load the embeddings
-    model_path = f"./data/checkpoints/cbow.{max_lines}lines.{embedding_dim}embeddings.{min_frequency}minfreq.{epochs}epochs.pth"
-
     print(f"Loading model from {model_path}...")
-    
-    cbow = model_cbow.CBOW(len(vocab_to_int), embedding_dim)
+
+    dev = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    cbow = CBOW(len(vocab_to_int), embedding_dim)
     cbow.load_state_dict(torch.load(model_path))
     cbow.eval()
+    
+    cbow.to(dev)
 
-    print(f"Model loaded from {model_path}")
+    print(f"Model loaded from {model_path} to {dev}.")
+
+    print(f"Processing dataset...")
 
     with torch.no_grad():
         # call split on row["query"] and convert each item to embeddings with model
@@ -58,7 +59,7 @@ def main():
                 processed_passages.append(passage_mean)
             return processed_passages
 
-        for row in clean_dataset:
+        for row in tqdm(clean_dataset, desc="Processing rows"):
             row['query'] = process_query(row["query"], cbow)
             row["passages"] = process_passages(row["passages"], cbow)
         
@@ -68,14 +69,10 @@ def main():
             for i, passage in enumerate(row['passages']):
                 row['passages'][i] = passage.squeeze(0).tolist()
 
-        clean_dataset_embeddings_file = f"./data/processed/ms_marco_clean_embeddings_{max_lines}_lines_minfreq_{min_frequency}.json"
-
         with open(clean_dataset_embeddings_file, "w") as f:
             json.dump(clean_dataset, f, indent=4)
 
         # upload the file to hugging face
-
-        from huggingface_hub import HfApi, HfFolder
 
         # Define the file paths and repository details
         file_paths = [

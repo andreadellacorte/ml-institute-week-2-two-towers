@@ -135,7 +135,7 @@ def get_tokenised_dataset(clean_dataset, min_frequency=0):
 def get_corpus(clean_dataset, vocab_to_int, min_frequency):
     # Embed the number of lines in the file name
     num_lines = len(clean_dataset)
-    cache_file = f"data/processed/ms_marco_corpus_{num_lines}_lines_minfreq_{min_frequency if min_frequency else 'none'}.json"
+    cache_file = f"data/processed/ms_marco_corpus_{num_lines}_lines_minfreq_{min_frequency}.json"
 
     if not os.path.exists(cache_file):
         print(f"Cache file not found. Creating corpus and saving to {cache_file}...")

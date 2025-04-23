@@ -1,3 +1,5 @@
+from config import *
+
 import torch
 import json
 from train_word2vec.model import CBOW
@@ -7,15 +9,11 @@ from sortedcontainers import SortedDict
 
 from utils.loss_utils import contrastive_loss
 
-clean_dataset_file = "data/processed/ms_marco_clean_500_lines.json"
-word_to_ids_file = "data/processed/ms_marco_tkn_word_to_ids_500_lines_minfreq_0.json"
-word_2vec_model_file = "data/checkpoints/cbow.500lines.256embeddings.0minfreq.5epochs.pth"
+clean_dataset_file = f"data/processed/ms_marco_clean_{max_lines}_lines.json"
+word_to_ids_file = f"data/processed/ms_marco_tkn_word_to_ids_{max_lines}_lines_minfreq_{min_frequency}.json"
+word_2vec_model_file = f"data/checkpoints/cbow.{max_lines}lines.256embeddings.{min_frequency}minfreq.5epochs.pth"
 doc_tower_model_file = "data/checkpoints/2025_04_23__11_38_41/doc_tower/doc_tower_epoch_5.pth"
 query_tower_model_file = "data/checkpoints/2025_04_23__11_38_41/query_tower/query_tower_epoch_5.pth"
-
-embedding_dim = 256
-contrastive_loss_margin = 0.2
-batch_size = 32  # Customize the batch size here
 
 def topk(mFoo, vocab_to_int, int_to_vocab):
 
@@ -108,6 +106,8 @@ def main():
   query_tower_output = query_tower(query_embedding)
   
   sorted_dictionary = SortedDict()
+
+  batch_size = 32  # Customize the batch size here
   
   for i in range(0, len(passages), batch_size):
       batch_passages = passages[i:i+batch_size]

@@ -1,3 +1,5 @@
+from config import *
+
 import torch
 import json
 import tqdm
@@ -6,15 +8,6 @@ from doc_tower import DocTower
 from query_tower import QueryTower
 
 from utils.loss_utils import contrastive_loss
-
-dataset_id = "microsoft/ms_marco"  # Replace with your input file path
-dataset_version = "v1.1"  # Replace with your desired dataset version
-max_lines = 500
-min_frequency = 0  # Set the minimum frequency for tokenization
-embedding_dim = 256
-contrastive_loss_margin = 0.2
-epochs = 5
-learning_rate = 0.001
 
 def main():
     traning_data_file = f"data/processed/ms_marco_training_data_{max_lines}_lines_minfreq_{min_frequency}.json"
@@ -33,7 +26,8 @@ def main():
 
     docTower.to(dev)
     queryTower.to(dev)
-    
+
+    learning_rate = 0.001
     optimizer = torch.optim.Adam(list(docTower.parameters()) + list(queryTower.parameters()), lr=learning_rate)
 
     # make a folder in data/checkpoints with the current date and time
@@ -46,6 +40,7 @@ def main():
     os.makedirs(f"data/checkpoints/{dt_string}/doc_tower", exist_ok=True)
     os.makedirs(f"data/checkpoints/{dt_string}/query_tower", exist_ok=True)
 
+    epochs = 5
     for epoch in range(epochs):
         prgs = tqdm.tqdm(dataloader, desc=f'Epoch {epoch+1}', leave=False)
         total_loss = 0.0

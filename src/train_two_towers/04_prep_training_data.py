@@ -1,11 +1,9 @@
+from config import *
+
 import json
 import random
 
-max_lines = 500
-min_frequency = 0  # Set the minimum frequency for tokenization
-
 def main():
-
     embeddings_file = f"data/processed/ms_marco_clean_embeddings_{max_lines}_lines_minfreq_{min_frequency}.json"
 
     with open(embeddings_file, "r") as f:
@@ -33,8 +31,8 @@ def main():
                 "relevant_doc": relevant_passage,
                 "irrelevant_doc": irrelevant_passage
             })
-
     training_data_file = f"data/processed/ms_marco_training_data_{max_lines}_lines_minfreq_{min_frequency}.json"
+
     with open(training_data_file, "w") as f:
         json.dump(training_data, f, indent=4)
 
