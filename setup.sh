@@ -42,7 +42,7 @@ else
 fi
 
 echo -e "${CYAN}Checking Hugging Face login status...${RESET}"
-if ! huggingface-cli whoami &> /dev/null; then
+if ! huggingface-cli whoami &> /dev/null || [[ -z "$(huggingface-cli whoami | grep 'Username')" ]]; then
     echo -e "${YELLOW}Not logged into Hugging Face. Logging in...${RESET}"
     git config --global credential.helper store
     huggingface-cli login
