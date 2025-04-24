@@ -1,15 +1,19 @@
 from config import *
 
+import os
+from datetime import datetime
+
 import torch
 import json
 import tqdm
 import utils.hf_utils as hf_utils
 
-import dataset
-from doc_tower import DocTower
-from query_tower import QueryTower
+import c_train_two_towers.dataset as dataset
+from c_train_two_towers.doc_tower import DocTower
+from c_train_two_towers.query_tower import QueryTower
 
 from utils.loss_utils import contrastive_loss
+import wandb  # Add wandb import
 
 def main():
     traning_data_file = f"data/processed/ms_marco_training_data_{max_lines}_lines_minfreq_{min_frequency}.json"
@@ -17,11 +21,12 @@ def main():
     with open(traning_data_file, "r") as f:
         training_data = json.load(f)
 
-    torch.manual_seed(42)
     dev = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    batch_size = 32
+
     dFoo = dataset.MarcoTWOTOWERS(training_data)
-    dataloader = torch.utils.data.DataLoader(dFoo, batch_size=32, shuffle=True)
+    dataloader = torch.utils.data.DataLoader(dFoo, batch_size=batch_size, shuffle=True)
     
     docTower = DocTower(embedding_dim)
     queryTower = QueryTower(embedding_dim)
@@ -32,17 +37,27 @@ def main():
     learning_rate = 0.001
     optimizer = torch.optim.Adam(list(docTower.parameters()) + list(queryTower.parameters()), lr=learning_rate)
 
+    epochs = 5
+
+    # Initialize wandb
+    wandb.init(
+        project = "mlx7-week2-twotowers",
+        name = f"{ts}",
+        config = {
+            "learning_rate": learning_rate,
+            "batch_size": batch_size,
+            "epochs": epochs,
+            "embedding_dim": embedding_dim,
+            "contrastive_loss_margin": contrastive_loss_margin,
+        }
+    )
+
     # make a folder in data/checkpoints with the current date and time
-    # to save the model in
-    import os
-    from datetime import datetime
+
     now = datetime.now()
     dt_string = now.strftime("%Y_%m_%d__%H_%M_%S")
-    os.makedirs(f"data/checkpoints/{dt_string}", exist_ok=True)
-    os.makedirs(f"data/checkpoints/{dt_string}/doc_tower", exist_ok=True)
-    os.makedirs(f"data/checkpoints/{dt_string}/query_tower", exist_ok=True)
-
-    epochs = 5
+    os.makedirs(f"data/checkpoints/{dt_string}/two_towers", exist_ok=True)
+    
     for epoch in range(epochs):
         prgs = tqdm.tqdm(dataloader, desc=f'Epoch {epoch+1}', leave=False)
         total_loss = 0.0
@@ -66,14 +81,32 @@ def main():
 
             total_loss += loss.item()
             prgs.set_postfix(loss=total_loss / (prgs.n + 1))
+
+            # Log batch loss to wandb
+            wandb.log({"batch_loss": loss.item()})
     
-        torch.save(docTower.state_dict(), f"data/checkpoints/{dt_string}/doc_tower/doc_tower_epoch_{epoch+1}.pth")
-        torch.save(queryTower.state_dict(), f"data/checkpoints/{dt_string}/query_tower/query_tower_epoch_{epoch+1}.pth")
+        # Save model checkpoints
+        doc_tower_path = f"data/checkpoints/{dt_string}/two_towers/doc_tower_epoch_{epoch+1}.pth"
+        query_tower_path = f"data/checkpoints/{dt_string}/two_towers/query_tower_epoch_{epoch+1}.pth"
+        
+        torch.save(docTower.state_dict(), doc_tower_path)
+        torch.save(queryTower.state_dict(), query_tower_path)
 
-        print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss / len(dataloader)}")
+        # Log epoch loss to wandb
+        epoch_loss = total_loss / len(dataloader)
+        wandb.log({"epoch_loss": epoch_loss, "epoch": epoch + 1})
 
-        # Upload the file to hugging face
-        hf_utils.save([clean_dataset_embeddings_file], repo_id, commit_message=f"Upload {clean_dataset_embeddings_file}")
+        print(f"Epoch {epoch+1}/{epochs}, Loss: {epoch_loss}")
+
+        # Upload the files to Hugging Face
+        hf_utils.save(
+            [doc_tower_path, query_tower_path],
+            repo_id,
+            commit_message=f"Upload model checkpoints for epoch {epoch+1}"
+        )
+
+    # Finish wandb run
+    wandb.finish()
 
 if __name__ == "__main__":
     main()

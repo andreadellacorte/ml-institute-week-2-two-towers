@@ -19,3 +19,15 @@ def topk(mFoo, vocab_to_int, int_to_vocab):
       print(f'  {word}: {sim:.4f}')
       count += 1
       if count == 5: break
+
+def main():
+  # Load the word2vec model
+  mFoo = torch.load('model.pth')
+  mFoo.eval()
+  mFoo.to('cpu')
+
+  # Load the vocab_to_int and int_to_vocab dictionaries
+  vocab_to_int = torch.load('vocab_to_int.pth')
+  int_to_vocab = torch.load('int_to_vocab.pth')
+
+  topk(mFoo, vocab_to_int, int_to_vocab)

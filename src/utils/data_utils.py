@@ -40,6 +40,7 @@ def get_clean_dataset(dataset):
             cleaned_item = {
                 "query": re.sub('\W+', ' ', item["query"]).lower(),
                 "passages": [re.sub('\W+', ' ', passage).lower() for passage in item["passages"]["passage_text"]],
+                "is_selected": item["passages"]["is_selected"],
             }
             cleaned_data.append(cleaned_item)
         
@@ -53,7 +54,7 @@ def get_clean_dataset(dataset):
 
     return cleaned_dataset
 
-def get_tokenised_dataset(clean_dataset, min_frequency=0):
+def get_tokeniser_dictionaries(clean_dataset, min_frequency=0):
     # Check if we already have a tokenized dataset with the same number of lines
     num_lines = len(clean_dataset)
     

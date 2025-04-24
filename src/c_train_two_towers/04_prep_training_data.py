@@ -2,10 +2,13 @@ from config import *
 
 import json
 import random
+from tqdm import tqdm
 import utils.hf_utils as hf_utils
 
 def main():
     embeddings_file = f"data/processed/ms_marco_clean_embeddings_{max_lines}_lines_minfreq_{min_frequency}.json"
+
+    print(f"Loading embeddings dataset from {embeddings_file}...")
 
     with open(embeddings_file, "r") as f:
         embeddings_dataset = json.load(f)
@@ -14,24 +17,32 @@ def main():
 
     training_data = []
 
-    for row in embeddings_dataset:
-        for relevant_passage in row["passages"]:
+    for row in tqdm(embeddings_dataset, desc="Processing embeddings_dataset..."):
+        for i, is_selected in enumerate(row["is_selected"]):
+            # if the passage is not selected, skip it
+            if not is_selected:
+                continue
             
-            # select a random row that's != the current
-            # row and select a random passage from that row
-            # to use as the irrelevant document
-            while True:
-                irrelevant_row = random.choice(embeddings_dataset)
-                if irrelevant_row != row:
-                    break
+            # select the relevant passage
+            relevant_passage = row["passages"][i]
             
-            irrelevant_passage = random.choice(irrelevant_row["passages"])
+            # for each relevant passage, select a random irrelevant passage
+            for _ in range(10):
+                # select a random row that's != the current
+                # row and select a random passage from that row
+                # to use as the irrelevant document
+                while True:
+                    irrelevant_row = random.choice(embeddings_dataset)
+                    if irrelevant_row != row:
+                        break
+                
+                irrelevant_passage = random.choice(irrelevant_row["passages"])
 
-            training_data.append({
-                "query": row["query"],
-                "relevant_doc": relevant_passage,
-                "irrelevant_doc": irrelevant_passage
-            })
+                training_data.append({
+                    "query": row["query"],
+                    "relevant_doc": relevant_passage,
+                    "irrelevant_doc": irrelevant_passage
+                })
 
     training_data_file = f"data/processed/ms_marco_training_data_{max_lines}_lines_minfreq_{min_frequency}.json"
 

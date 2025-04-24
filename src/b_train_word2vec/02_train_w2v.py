@@ -1,5 +1,6 @@
 from config import *
 
+import os
 import tqdm
 import wandb
 import torch
@@ -8,17 +9,17 @@ import evaluate
 import datetime
 import model as model
 
-from utils.data_utils import get_raw_dataset, get_clean_dataset, get_tokenised_dataset, get_corpus
+import utils.hf_utils as hf_utils
+
+from utils.data_utils import get_raw_dataset, get_clean_dataset, get_tokeniser_dictionaries, get_corpus
 
 def main():
-  torch.manual_seed(42)
-
   dev = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
   ts = datetime.datetime.now().strftime('%Y_%m_%d__%H_%M_%S')
 
   dFoo = get_raw_dataset(dataset_id, dataset_version, max_lines)
   clean_dataset = get_clean_dataset(dFoo)
-  vocab_to_int, int_to_vocab = get_tokenised_dataset(clean_dataset, min_frequency)
+  vocab_to_int, int_to_vocab = get_tokeniser_dictionaries(clean_dataset, min_frequency)
   corpus = get_corpus(clean_dataset, vocab_to_int, min_frequency)
 
   ds = dataset.MarcoCBOW(corpus, vocab_to_int, int_to_vocab)
@@ -29,14 +30,15 @@ def main():
   mFoo = model.CBOW(len(vocab_to_int), embedding_dim)
   print('mFoo:params', sum(p.numel() for p in mFoo.parameters()))
 
-  learning_rate = 0.003
+  learning_rate = 0.001
   opFoo = torch.optim.Adam(mFoo.parameters(), lr=learning_rate)
 
   criterion = torch.nn.CrossEntropyLoss()
 
-  wandb.init(project='mlx7-week2-cbow', name=f'{ts}')
-
-  wandb.config.update({
+  wandb.init(
+    project = 'mlx7-week2-cbow',
+    name = f'{ts}',
+    config= {
       'dataset_id': dataset_id,
       'dataset_version': dataset_version,
       'max_lines': max_lines,
@@ -44,11 +46,12 @@ def main():
       'embedding_dim': embedding_dim,
       'batch_size': batch_size,
       'learning_rate': learning_rate
-  })
+    }
+  )
 
   mFoo.to(dev)
 
-  for epoch in range(5):
+  for epoch in range(20):
     prgs = tqdm.tqdm(dl, desc=f'Epoch {epoch+1}', leave=False)
     for i, (ipt, trg) in enumerate(prgs):
       ipt, trg = ipt.to(dev), trg.to(dev)
@@ -63,12 +66,21 @@ def main():
       if i % 10_000 == 0:
           evaluate.topk(mFoo, vocab_to_int, int_to_vocab)
 
+    # make folder /data/checkpoints/cbow/{ts}
+    # to save the model in
+    folder = f"./data/checkpoints/cbow/{ts}"
+    checkpoint_name = f'cbow.{len(dFoo)}lines.{embedding_dim}embeddings.{min_frequency}minfreq.{epoch + 1}epochs.pth'
+
+    os.makedirs(folder, exist_ok=True)
+
     # checkpoint
-    checkpoint_name = f'{ts}.cbow.{len(dFoo)}lines.{embedding_dim}embeddings.{min_frequency}minfreq.{epoch + 1}epochs.pth'
-    torch.save(mFoo.state_dict(), f'./data/checkpoints/{checkpoint_name}')
+    
+    torch.save(mFoo.state_dict(), f'{folder}/{checkpoint_name}')
     artifact = wandb.Artifact('model-weights', type='model')
-    artifact.add_file(f'./data/checkpoints/{checkpoint_name}')
+    artifact.add_file(f'{folder}/{checkpoint_name}')
     wandb.log_artifact(artifact)
+
+    hf_utils.save(f'{folder}/{checkpoint_name}', repo_id, f'saving {checkpoint_name}')
 
   wandb.finish()
 

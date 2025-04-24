@@ -2,6 +2,7 @@ from config import *
 
 import torch
 import json
+from tqdm import tqdm  # Import tqdm for the progress bar
 from train_word2vec.model import CBOW
 from doc_tower import DocTower
 from query_tower import QueryTower
@@ -26,8 +27,87 @@ def sentence_to_mean_embedding(sentence, word2vec, vocab_to_int, device):
   tokenised_sentence = torch.mean(tokenised_sentence, dim=0)
   tokenised_sentence = tokenised_sentence.unsqueeze(0)
   tokenised_sentence = tokenised_sentence.to(device)
+
   return tokenised_sentence
-  
+
+def evaluate_example_queries(example_queries, passages, cbow, vocab_to_int, dev, query_tower, doc_tower, k=5):
+    batch_size = 32  # Customize the batch size here
+
+    for example_query in example_queries:
+      query_embedding = sentence_to_mean_embedding(example_query, cbow, vocab_to_int, dev)
+      query_tower_output = query_tower(query_embedding)
+      sorted_dictionary = SortedDict()
+
+      for i in range(0, len(passages), batch_size):
+        batch_passages = passages[i:i+batch_size]
+        passage_embeddings = torch.cat([passage['passage_embedding'] for passage in batch_passages], dim=0)
+        doc_tower_outputs = doc_tower(passage_embeddings)
+        # calculate the cosine similarity between the query and all passages in the batch
+        similarity = torch.nn.functional.cosine_similarity(query_tower_output, doc_tower_outputs, dim=1)
+        # add the passages to the sorted dictionary
+        for j, sim in enumerate(similarity):
+          sorted_dictionary[sim.item()] = batch_passages[j]
+
+      # print the top 5 passages
+      print("Top 5 passages for query:", example_query)
+      for i, (key, value) in enumerate(reversed(sorted_dictionary.items())):
+        if i == 5:
+          break
+        print(f"Passage {i+1}: {value['passage']}")
+        print(f"Cosine similarity: {key}")
+
+def calculate_metrics(queries, passages, query_tower, doc_tower, k=10):
+    total_reciprocal_rank = 0
+    total_average_precision = 0
+    total_average_recall = 0
+    total_queries = len(queries)
+
+    print(f"Calculating Mean Reciprocal Rank (MRR), Average Recall (MAR) and Average Precision (MAP) at k = {k} for all queries:")
+
+    for query_embedding, relevant_passages in tqdm(queries.items(), desc="Evaluating queries"):
+        query_tower_output = query_tower(query_embedding)
+        sorted_dictionary = SortedDict()
+
+        for i in range(0, len(passages), batch_size):
+            batch_passages = passages[i:i+batch_size]
+            passage_embeddings = torch.cat([passage['passage_embedding'] for passage in batch_passages], dim=0)
+            doc_tower_outputs = doc_tower(passage_embeddings)
+            similarity = torch.nn.functional.cosine_similarity(query_tower_output, doc_tower_outputs, dim=1)
+
+            for j, sim in enumerate(similarity):
+                sorted_dictionary[sim.item()] = batch_passages[j]
+
+        # Calculate reciprocal rank for the current query
+        for rank, (key, value) in enumerate(reversed(sorted_dictionary.items()), start=1):
+            if value['relevant_query'] == query_embedding:
+                total_reciprocal_rank += 1 / rank
+                break
+
+        # Calculate precision and recall at k
+        relevant_count = 0
+        precision_at_k = 0
+        recall_at_k = 0
+
+        for rank, (key, value) in enumerate(reversed(sorted_dictionary.items()), start=1):
+            if rank > k:
+                break
+            if value['relevant_query'] == query_embedding:
+                relevant_count += 1
+                precision_at_k += relevant_count / rank
+
+        total_relevant = len(relevant_passages)
+        recall_at_k = relevant_count / total_relevant if total_relevant > 0 else 0
+        total_average_precision += precision_at_k / k
+        total_average_recall += recall_at_k
+
+    mean_reciprocal_rank = total_reciprocal_rank / total_queries
+    mean_average_precision = total_average_precision / total_queries
+    mean_average_recall = total_average_recall / total_queries
+
+    print(f"Mean Reciprocal Rank (MRR): {mean_reciprocal_rank}")
+    print(f"Mean Average Precision (MAP): {mean_average_precision}")
+    print(f"Mean Average Recall (MAR): {mean_average_recall}")
+
 def main():
   
   with open(word_to_ids_file, "r") as f:
@@ -60,7 +140,7 @@ def main():
   passages = []
 
   with torch.no_grad():
-    for i, row in enumerate(clean_dataset):
+    for i, row in enumerate(tqdm(clean_dataset, desc="Processing dataset")):
       query_embedding = sentence_to_mean_embedding(row["query"], cbow, vocab_to_int, dev)
       queries[query_embedding] = []
       for passage in row["passages"]:
@@ -73,86 +153,16 @@ def main():
         })
         queries[query_embedding].append(passage_embedding)
 
-  example_query = "pork products"
+  example_queries = [
+      "pork products",
+      "who is the ronald reagan",
+      "who is the president of the united states",
+  ]
 
-  query_embedding = sentence_to_mean_embedding(example_query, cbow, vocab_to_int, dev)
+  # Call the method in the main function
+  evaluate_example_queries(example_queries, passages, cbow, vocab_to_int, dev, query_tower, doc_tower, k=5)
 
-  query_tower_output = query_tower(query_embedding)
-  
-  sorted_dictionary = SortedDict()
-
-  batch_size = 32  # Customize the batch size here
-  
-  for i in range(0, len(passages), batch_size):
-      batch_passages = passages[i:i+batch_size]
-      passage_embeddings = torch.cat([passage['passage_embedding'] for passage in batch_passages], dim=0)
-      doc_tower_outputs = doc_tower(passage_embeddings)
-      # calculate the cosine similarity between the query and all passages in the batch
-      similarity = torch.nn.functional.cosine_similarity(query_tower_output, doc_tower_outputs, dim=1)
-      # add the passages to the sorted dictionary
-      for j, sim in enumerate(similarity):
-          sorted_dictionary[sim.item()] = batch_passages[j]
-
-  # print the top 5 passages
-  print("Top 5 passages for query:", example_query)
-  for i, (key, value) in enumerate(reversed(sorted_dictionary.items())):
-    if i == 5:
-      break
-    print(f"Passage {i+1}: {value['passage']}")
-    print(f"Cosine similarity: {key}")
-
-  # calculate mean reciprocal rank at K for all queries in 'queries'
-  total_reciprocal_rank = 0
-  total_average_precision = 0
-  total_average_recall = 0
-  total_queries = len(queries)
-  k = 10  # You can customize k here
-
-  print(f"Calculating Mean Reciprocal Rank (MRR), Average Recall (MAR) and Average Precision (MAP) at k = {k} for all queries:")
-
-  for query_embedding, relevant_passages in queries.items():
-      query_tower_output = query_tower(query_embedding)
-      sorted_dictionary = SortedDict()
-
-      for i in range(0, len(passages), batch_size):
-          batch_passages = passages[i:i+batch_size]
-          passage_embeddings = torch.cat([passage['passage_embedding'] for passage in batch_passages], dim=0)
-          doc_tower_outputs = doc_tower(passage_embeddings)
-          similarity = torch.nn.functional.cosine_similarity(query_tower_output, doc_tower_outputs, dim=1)
-
-          for j, sim in enumerate(similarity):
-              sorted_dictionary[sim.item()] = batch_passages[j]
-
-      # Calculate reciprocal rank for the current query
-      for rank, (key, value) in enumerate(reversed(sorted_dictionary.items()), start=1):
-          if value['relevant_query'] == query_embedding:
-              total_reciprocal_rank += 1 / rank
-              break
-
-      # Calculate precision and recall at k
-      relevant_count = 0
-      precision_at_k = 0
-      recall_at_k = 0
-
-      for rank, (key, value) in enumerate(reversed(sorted_dictionary.items()), start=1):
-          if rank > k:
-              break
-          if value['relevant_query'] == query_embedding:
-              relevant_count += 1
-              precision_at_k += relevant_count / rank
-
-      total_relevant = len(relevant_passages)
-      recall_at_k = relevant_count / total_relevant if total_relevant > 0 else 0
-      total_average_precision += precision_at_k / k
-      total_average_recall += recall_at_k
-
-  mean_reciprocal_rank = total_reciprocal_rank / total_queries
-  mean_average_precision = total_average_precision / total_queries
-  mean_average_recall = total_average_recall / total_queries
-
-  print(f"Mean Reciprocal Rank (MRR): {mean_reciprocal_rank}")
-  print(f"Mean Average Precision (MAP): {mean_average_precision}")
-  print(f"Mean Average Recall (MAR): {mean_average_recall}")
+  calculate_metrics(queries, passages, query_tower, doc_tower, k=10)
 
 if __name__ == "__main__":
   main()
