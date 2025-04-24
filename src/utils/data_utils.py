@@ -4,7 +4,7 @@ import json
 from datasets import load_dataset
 
 def get_raw_dataset(dataset_id, dataset_version, max_lines=None):
-    cache_file = f"data/raw/ms_marco_all.txt"  # Path to the cached dataset file
+    cache_file = f"data/raw/ms_marco_{'all' if max_lines is None else max_lines}.txt"  # Path to the cached dataset file
 
     if not os.path.exists(cache_file):
         print(f"Cache file not found. Downloading and saving dataset to {cache_file}...")

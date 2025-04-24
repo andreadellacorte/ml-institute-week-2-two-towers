@@ -2,6 +2,7 @@ from config import *
 
 import json
 import random
+import utils.hf_utils as hf_utils
 
 def main():
     embeddings_file = f"data/processed/ms_marco_clean_embeddings_{max_lines}_lines_minfreq_{min_frequency}.json"
@@ -31,10 +32,14 @@ def main():
                 "relevant_doc": relevant_passage,
                 "irrelevant_doc": irrelevant_passage
             })
+
     training_data_file = f"data/processed/ms_marco_training_data_{max_lines}_lines_minfreq_{min_frequency}.json"
 
     with open(training_data_file, "w") as f:
         json.dump(training_data, f, indent=4)
+
+    # Upload the file to hugging face
+    hf_utils.save([training_data_file], repo_id, commit_message=f"Upload {training_data_file}")
 
 if __name__ == "__main__":
     main()

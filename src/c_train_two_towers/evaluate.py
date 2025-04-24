@@ -15,32 +15,6 @@ word_2vec_model_file = f"data/checkpoints/cbow.{max_lines}lines.256embeddings.{m
 doc_tower_model_file = "data/checkpoints/2025_04_23__11_38_41/doc_tower/doc_tower_epoch_5.pth"
 query_tower_model_file = "data/checkpoints/2025_04_23__11_38_41/query_tower/query_tower_epoch_5.pth"
 
-def topk(mFoo, vocab_to_int, int_to_vocab):
-
-  idx = vocab_to_int['computer']
-  vec = mFoo.emb.weight[idx].detach()
-  with torch.no_grad():
-
-    vec = torch.nn.functional.normalize(vec.unsqueeze(0), p=2, dim=1)
-    emb = torch.nn.functional.normalize(mFoo.emb.weight.detach(), p=2, dim=1)
-    sim = torch.matmul(emb, vec.squeeze())
-    top_val, top_idx = torch.topk(sim, 6)
-    print('\nTop 5 words similar to "computer":')
-    count = 0
-    for i, idx in enumerate(top_idx):
-      word = int_to_vocab[idx.item()]
-      sim = top_val[i].item()
-      print(f'  {word}: {sim:.4f}')
-      count += 1
-      if count == 5: break
-
-def feed(query, doc, queryModel, docModel):
-  # feed all services to the model and return the output
-  query = queryModel(query)
-  doc = docModel(doc)
-
-  return contrastive_loss(query, doc, doc, contrastive_loss_margin)
-
 def sentence_to_mean_embedding(sentence, word2vec, vocab_to_int, device):
   tokenised_sentence = [vocab_to_int[word] for word in sentence.split()]
 

@@ -6,6 +6,7 @@ from huggingface_hub import HfApi, HfFolder
 from tqdm import tqdm
 
 from utils.data_utils import get_raw_dataset, get_clean_dataset, get_tokenised_dataset
+import utils.hf_utils as hf_utils
 
 from train_word2vec.model import CBOW
 
@@ -52,10 +53,8 @@ def main():
         def process_passages(passages, cbow):
             processed_passages = []
             for passage in passages:
-                passage_mean = torch.zeros(cbow.emb.weight.size(1))
-                for i, id in enumerate(passage):
-                    passage_mean += (cbow.emb.weight[id].detach() - passage_mean) / (i + 1)
-                passage_mean = passage_mean.unsqueeze(0)
+                passage_embeddings = [cbow.emb.weight[id].detach() for id in passage]
+                passage_mean = torch.mean(torch.stack(passage_embeddings), dim=0).unsqueeze(0)
                 processed_passages.append(passage_mean)
             return processed_passages
 
@@ -72,28 +71,7 @@ def main():
         with open(clean_dataset_embeddings_file, "w") as f:
             json.dump(clean_dataset, f, indent=4)
 
-        # upload the file to hugging face
-
-        # Define the file paths and repository details
-        file_paths = [
-            clean_dataset_embeddings_file
-        ]
-
-        repo_id = "andreadellacorte/ml-institute-week-2-two-towers"  # Replace with your Hugging Face repo
-        commit_message = "Upload checkpoint files"
-
-        # Authenticate with Hugging Face
-        api = HfApi()
-        token = HfFolder.get_token()  # Ensure you have logged in using `huggingface-cli login`
-
-        # Upload the files
-        for file_path in file_paths:
-            api.upload_file(
-                path_or_fileobj=file_path,
-                path_in_repo=file_path,  # Keep relative path in repo
-                repo_id=repo_id,
-                repo_type="model",  # Change to "dataset" if uploading to a dataset repo
-                commit_message=commit_message,
-            )
+        # Upload the file to hugging face
+        hf_utils.save([clean_dataset_embeddings_file], repo_id, commit_message=f"Upload {clean_dataset_embeddings_file}")
 if __name__ == "__main__":
     main()

@@ -3,6 +3,8 @@ from config import *
 import torch
 import json
 import tqdm
+import utils.hf_utils as hf_utils
+
 import dataset
 from doc_tower import DocTower
 from query_tower import QueryTower
@@ -69,6 +71,9 @@ def main():
         torch.save(queryTower.state_dict(), f"data/checkpoints/{dt_string}/query_tower/query_tower_epoch_{epoch+1}.pth")
 
         print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss / len(dataloader)}")
+
+        # Upload the file to hugging face
+        hf_utils.save([clean_dataset_embeddings_file], repo_id, commit_message=f"Upload {clean_dataset_embeddings_file}")
 
 if __name__ == "__main__":
     main()

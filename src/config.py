@@ -6,3 +6,4 @@ max_lines = 82326
 min_frequency = 5  # Set the minimum frequency for tokenization
 embedding_dim = 256
 contrastive_loss_margin = 0.2
+repo_id = "andreadellacorte/ml-institute-week-2-two-towers"  # Replace with your Hugging Face repo
