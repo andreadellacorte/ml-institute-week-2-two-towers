@@ -13,6 +13,8 @@ from model import CBOW
 from model import DocTower
 from model import QueryTower
 
+import evaluate
+
 from utils.loss_utils import contrastive_loss
 import wandb  # Add wandb import
 
@@ -21,7 +23,7 @@ def main():
 
     dev = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    batch_size = 8
+    batch_size = 32
 
     model_path = f"data/models/cbow.{max_lines}lines.{embedding_dim}embeddings.{min_frequency}minfreq.5epochs.pth"
     vocab_to_int = file_utils.load_json(f'data/processed/ms_marco_tkn_word_to_ids_{max_lines}_lines_minfreq_{min_frequency}.json')
@@ -75,6 +77,8 @@ def main():
     now = datetime.now()
     dt_string = now.strftime("%Y_%m_%d__%H_%M_%S")
     os.makedirs(f"data/checkpoints/{dt_string}/two_towers", exist_ok=True)
+
+    _, passages = evaluate.embed_queries_passages(cbow, vocab_to_int, dev, clean_dataset)
     
     for epoch in range(epochs):
         prgs = tqdm.tqdm(dataloader, desc=f'Epoch {epoch+1}', leave=False)
@@ -100,15 +104,43 @@ def main():
             total_loss += loss.item()
             prgs.set_postfix(loss=total_loss / (prgs.n + 1))
 
-            # Log batch loss to wandb
-            wandb.log({"batch_loss": loss.item()})
-    
+            # Log additional metrics to wandb
+            wandb.log({
+                "batch_loss": loss.item(),
+                "gradient_norm": sum(p.grad.norm().item() for p in docTower.parameters() if p.grad is not None),
+                "learning_rate": optimizer.param_groups[0]['lr'],
+            })
+
+        example_queries = [
+            "pork products",
+            "was ronald reagan a good president",
+            "who is the ronald reagan",
+            "who is the president of the united states",
+            "poverty",
+            "united states",
+            "united kingdom",
+        ]
+
+        # Call the method in the main function
+        evaluate.evaluate_example_queries(example_queries, passages, cbow, vocab_to_int, dev, query_tower, doc_tower, k=5)
+
         # Save model checkpoints
         doc_tower_path = f"data/checkpoints/{dt_string}/two_towers/doc_tower_epoch_{epoch+1}.pth"
         query_tower_path = f"data/checkpoints/{dt_string}/two_towers/query_tower_epoch_{epoch+1}.pth"
         
         torch.save(docTower.state_dict(), doc_tower_path)
         torch.save(queryTower.state_dict(), query_tower_path)
+
+        # Log validation metrics (if applicable)
+        validation_loss = evaluate.calculate_validation_loss(dataloader, queryTower, docTower, dev)
+        wandb.log({"validation_loss": validation_loss, "epoch": epoch + 1})
+
+        # Log embedding distributions
+        wandb.log({
+            "query_embedding_distribution": wandb.Histogram(query.cpu().detach().numpy()),
+            "relevant_doc_embedding_distribution": wandb.Histogram(pos.cpu().detach().numpy()),
+            "irrelevant_doc_embedding_distribution": wandb.Histogram(neg.cpu().detach().numpy()),
+        })
 
         # Log epoch loss to wandb
         epoch_loss = total_loss / len(dataloader)

@@ -20,7 +20,7 @@ def topk(mFoo, vocab_to_int, int_to_vocab, word='computer'):
     emb = torch.nn.functional.normalize(mFoo.emb.weight.detach(), p=2, dim=1)
     sim = torch.matmul(emb, vec.squeeze())
     top_val, top_idx = torch.topk(sim, 6)
-    print(f'\nTop 5 words similar to "{word}":')
+    print(f'\n\nTop 5 words similar to "{word}":')
     count = 0
     for i, idx in enumerate(top_idx):
       if i == 0: continue
@@ -52,12 +52,14 @@ def evaluate_word_2_vec():
 
 clean_dataset_file = f"data/processed/ms_marco_clean_{max_lines}_lines.json"
 word_to_ids_file = f"data/processed/ms_marco_tkn_word_to_ids_{max_lines}_lines_minfreq_{min_frequency}.json"
-word_2vec_model_file = f"data/checkpoints/cbow.{max_lines}lines.256embeddings.{min_frequency}minfreq.5epochs.pth"
-doc_tower_model_file = "data/checkpoints/2025_04_23__11_38_41/doc_tower/doc_tower_epoch_5.pth"
-query_tower_model_file = "data/checkpoints/2025_04_23__11_38_41/query_tower/query_tower_epoch_5.pth"
+word_2vec_model_file = f"data/models/cbow.{max_lines}lines.256embeddings.{min_frequency}minfreq.5epochs.pth"
+doc_tower_model_file = "data/checkpoints/2025_04_25__13_46_20/two_towers/doc_tower_epoch_1.pth"
+query_tower_model_file = "data/checkpoints/2025_04_25__13_46_20/two_towers/query_tower_epoch_1" \
+"" \
+".pth"
 
 def sentence_to_mean_embedding(sentence, word2vec, vocab_to_int, device):
-  tokenised_sentence = [vocab_to_int[word] for word in sentence.split()]
+  tokenised_sentence = [vocab_to_int[word] if word in vocab_to_int else vocab_to_int["<UNK>"] for word in sentence.split()]
 
   for i in range(len(tokenised_sentence)):
     tokenised_sentence[i] = word2vec.emb.weight[tokenised_sentence[i]].detach()
@@ -71,36 +73,38 @@ def sentence_to_mean_embedding(sentence, word2vec, vocab_to_int, device):
   return tokenised_sentence
 
 def evaluate_example_queries(example_queries, passages, cbow, vocab_to_int, dev, query_tower, doc_tower, k=5):
-    batch_size = 32  # Customize the batch size here
+  batch_size = 32  # Customize the batch size here
 
-    for example_query in example_queries:
-      query_embedding = sentence_to_mean_embedding(example_query, cbow, vocab_to_int, dev)
-      query_tower_output = query_tower(query_embedding)
-      sorted_dictionary = SortedDict()
+  for example_query in example_queries:
+    query_embedding = sentence_to_mean_embedding(example_query, cbow, vocab_to_int, dev)
+    query_tower_output = query_tower(query_embedding)
+    sorted_dictionary = SortedDict()
 
-      for i in range(0, len(passages), batch_size):
-        batch_passages = passages[i:i+batch_size]
-        passage_embeddings = torch.cat([passage['passage_embedding'] for passage in batch_passages], dim=0)
-        doc_tower_outputs = doc_tower(passage_embeddings)
-        # calculate the cosine similarity between the query and all passages in the batch
-        similarity = torch.nn.functional.cosine_similarity(query_tower_output, doc_tower_outputs, dim=1)
-        # add the passages to the sorted dictionary
-        for j, sim in enumerate(similarity):
-          sorted_dictionary[sim.item()] = batch_passages[j]
+    for i in range(0, len(passages), batch_size):
+      batch_passages = passages[i:i+batch_size]
+      passage_embeddings = torch.cat([passage['passage_embedding'] for passage in batch_passages], dim=0)
+      doc_tower_outputs = doc_tower(passage_embeddings)
+      # calculate the cosine similarity between the query and all passages in the batch
+      similarity = torch.nn.functional.cosine_similarity(query_tower_output, doc_tower_outputs, dim=1)
+      # add the passages to the sorted dictionary
+      for j, sim in enumerate(similarity):
+        sorted_dictionary[sim.item()] = batch_passages[j]
 
-      # print the top 5 passages
-      print("Top 5 passages for query:", example_query)
-      for i, (key, value) in enumerate(reversed(sorted_dictionary.items())):
-        if i == 5:
-          break
-        print(f"Passage {i+1}: {value['passage']}")
-        print(f"Cosine similarity: {key}")
+    # print the top 5 passages
+    print("Top 5 passages for query:", example_query)
+    for i, (key, value) in enumerate(reversed(sorted_dictionary.items())):
+      if i == 5:
+        break
+      print(f"Passage {i+1}: {value['passage']}")
+      print(f"Cosine similarity: {key}")
 
 def calculate_metrics(queries, passages, query_tower, doc_tower, k=10):
     total_reciprocal_rank = 0
     total_average_precision = 0
     total_average_recall = 0
     total_queries = len(queries)
+
+    batch_size = 32
 
     print(f"Calculating Mean Reciprocal Rank (MRR), Average Recall (MAR) and Average Precision (MAP) at k = {k} for all queries:")
 
@@ -148,11 +152,53 @@ def calculate_metrics(queries, passages, query_tower, doc_tower, k=10):
     print(f"Mean Average Precision (MAP): {mean_average_precision}")
     print(f"Mean Average Recall (MAR): {mean_average_recall}")
 
-def evaluate_two_towers():
-  
-  vocab_to_int = file_utils.load_json(word_to_ids_file)
+def evaluate_two_towers(cbow, doc_tower, query_tower, vocab_to_int, dev):
+  clean_dataset = file_utils.load_json(clean_dataset_file)
 
+  # retrieve only the first 1000 rows from the dataset
+  clean_dataset = clean_dataset[:1000]
+
+  queries, passages = embed_queries_passages(cbow, vocab_to_int, dev, clean_dataset)
+
+  example_queries = [
+      "pork products",
+      "was ronald reagan a good president",
+      "who is the ronald reagan",
+      "who is the president of the united states",
+      "poverty",
+      "united states",
+      "united kingdom",
+  ]
+
+  # Call the method in the main function
+  evaluate_example_queries(example_queries, passages, cbow, vocab_to_int, dev, query_tower, doc_tower, k=5)
+
+  calculate_metrics(queries, passages, query_tower, doc_tower, k=10)
+
+def embed_queries_passages(cbow, vocab_to_int, dev, clean_dataset):
+  queries = {}
+  passages = []
+
+  with torch.no_grad():
+    for i, row in enumerate(tqdm(clean_dataset, desc="Processing dataset")):
+      query_embedding = sentence_to_mean_embedding(row["query"], cbow, vocab_to_int, dev)
+      queries[query_embedding] = []
+      for passage in row["passages"]:
+        passage_embedding = sentence_to_mean_embedding(passage, cbow, vocab_to_int, dev)
+        passages.append({
+        'relevant_query': row["query"],
+        'passage': passage,
+        'relevant_query_embedding': query_embedding,
+        'passage_embedding': passage_embedding
+      })
+        queries[query_embedding].append(passage_embedding)
+
+  return queries, passages
+
+if __name__ == "__main__":
   dev = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+  vocab_to_int = file_utils.load_json(word_to_ids_file)
 
   # Load the word2vec model
   cbow = CBOW(len(vocab_to_int), embedding_dim)
@@ -172,36 +218,4 @@ def evaluate_two_towers():
   query_tower.eval()
   query_tower.to(dev)
 
-  clean_dataset = file_utils.load_json(clean_dataset_file)
-
-  queries = {}
-  passages = []
-
-  with torch.no_grad():
-    for i, row in enumerate(tqdm(clean_dataset, desc="Processing dataset")):
-      query_embedding = sentence_to_mean_embedding(row["query"], cbow, vocab_to_int, dev)
-      queries[query_embedding] = []
-      for passage in row["passages"]:
-        passage_embedding = sentence_to_mean_embedding(passage, cbow, vocab_to_int, dev)
-        passages.append({
-          'relevant_query': row["query"],
-          'passage': passage,
-          'relevant_query_embedding': query_embedding,
-          'passage_embedding': passage_embedding
-        })
-        queries[query_embedding].append(passage_embedding)
-
-  example_queries = [
-      "pork products",
-      "who is the ronald reagan",
-      "who is the president of the united states",
-  ]
-
-  # Call the method in the main function
-  evaluate_example_queries(example_queries, passages, cbow, vocab_to_int, dev, query_tower, doc_tower, k=5)
-
-  calculate_metrics(queries, passages, query_tower, doc_tower, k=10)
-
-if __name__ == '__main__':
-  evaluate_word_2_vec()
-  print("Evaluation complete.")
+  evaluate_two_towers(cbow, doc_tower, query_tower, vocab_to_int, dev)
