@@ -155,8 +155,12 @@ def evaluate_two_towers():
 
   example_queries = [
       "pork products",
+      "was ronald reagan a good president",
       "who is the ronald reagan",
       "who is the president of the united states",
+      "poverty",
+      "united states",
+      "united kingdom",
   ]
 
   # Call the method in the main function

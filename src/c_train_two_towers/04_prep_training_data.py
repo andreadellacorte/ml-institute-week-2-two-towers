@@ -43,6 +43,8 @@ def main():
                     "relevant_doc": relevant_passage,
                     "irrelevant_doc": irrelevant_passage
                 })
+            
+            break
 
     training_data_file = f"data/processed/ms_marco_training_data_{max_lines}_lines_minfreq_{min_frequency}.json"
 

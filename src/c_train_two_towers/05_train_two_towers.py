@@ -4,11 +4,12 @@ import os
 from datetime import datetime
 
 import torch
-import json
 import tqdm
-import utils.hf_utils as hf_utils
+
+from utils import file_utils, hf_utils, data_utils
 
 from dataset import MarcoTWOTOWERS
+from model import CBOW
 from model import DocTower
 from model import QueryTower
 
@@ -16,19 +17,34 @@ from utils.loss_utils import contrastive_loss
 import wandb  # Add wandb import
 
 def main():
-    ts = datetime.datetime.now().strftime('%Y_%m_%d__%H_%M_%S')
-
-    traning_data_file = f"data/processed/ms_marco_training_data_{max_lines}_lines_minfreq_{min_frequency}.json"
-    
-    with open(traning_data_file, "r") as f:
-        training_data = json.load(f)
+    ts = datetime.now().strftime('%Y_%m_%d__%H_%M_%S')
 
     dev = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    batch_size = 32
+    batch_size = 8
 
-    dFoo = MarcoTWOTOWERS(training_data)
-    dataloader = torch.utils.data.DataLoader(dFoo, batch_size=batch_size, shuffle=True)
+    model_path = f"data/models/cbow.{max_lines}lines.{embedding_dim}embeddings.{min_frequency}minfreq.5epochs.pth"
+    vocab_to_int = file_utils.load_json(f'data/processed/ms_marco_tkn_word_to_ids_{max_lines}_lines_minfreq_{min_frequency}.json')
+
+    cbow = CBOW(len(vocab_to_int), embedding_dim)
+    cbow.load_state_dict(torch.load(model_path))
+    cbow.eval()
+    
+    cbow.to(dev)
+
+    marcoData = data_utils.get_raw_dataset(dataset_id, dataset_version, max_lines)
+    clean_dataset = data_utils.get_clean_dataset(marcoData)
+
+    # remove from clean_dataset the queries not any(row["is_selected"]):
+    clean_dataset = [row for row in clean_dataset if any(row["is_selected"])]
+
+    dFoo = MarcoTWOTOWERS(clean_dataset, vocab_to_int, cbow.emb)
+
+    def collate_fn(batch):
+        queries, relevant_docs, irrelevant_docs = zip(*[item for sublist in batch for item in sublist])
+        return torch.stack(queries), torch.stack(relevant_docs), torch.stack(irrelevant_docs)
+
+    dataloader = torch.utils.data.DataLoader(dFoo, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     
     docTower = DocTower(embedding_dim)
     queryTower = QueryTower(embedding_dim)
@@ -36,7 +52,7 @@ def main():
     docTower.to(dev)
     queryTower.to(dev)
 
-    learning_rate = 0.001
+    learning_rate = 0.02
     optimizer = torch.optim.Adam(list(docTower.parameters()) + list(queryTower.parameters()), lr=learning_rate)
 
     epochs = 5
