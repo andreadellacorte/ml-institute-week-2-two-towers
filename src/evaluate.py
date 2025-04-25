@@ -152,6 +152,8 @@ def calculate_metrics(queries, passages, query_tower, doc_tower, k=10):
     print(f"Mean Average Precision (MAP): {mean_average_precision}")
     print(f"Mean Average Recall (MAR): {mean_average_recall}")
 
+    return mean_reciprocal_rank, mean_average_precision, mean_average_recall
+
 def evaluate_two_towers(cbow, doc_tower, query_tower, vocab_to_int, dev):
   clean_dataset = file_utils.load_json(clean_dataset_file)
 

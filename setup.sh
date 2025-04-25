@@ -104,18 +104,23 @@ else
     echo -e "${GREEN}Virtual environment is active and ready.${RESET}"
 fi
 
-# Install zsh if not installed
-if ! command -v zsh &> /dev/null; then
-    echo -e "${YELLOW}zsh not found. Installing...${RESET}"
-    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        apt install zsh -y
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        brew install zsh
+# Function to install a package if not already installed
+install_if_not_exists() {
+    local package_name=$1
+    local install_command=$2
+
+    if ! command -v "$package_name" &> /dev/null; then
+        echo -e "${YELLOW}$package_name not found. Installing...${RESET}"
+        eval "$install_command"
     else
-        echo -e "${RED}Unsupported OS. Please install zsh manually.${RESET}"
+        echo -e "${GREEN}$package_name is already installed.${RESET}"
     fi
-else
-    echo -e "${GREEN}zsh is already installed.${RESET}"
-fi
+}
+
+# Install vim
+install_if_not_exists "vim" "apt install vim -y"
+
+# Install zsh
+install_if_not_exists "zsh" "apt install zsh -y"
 
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"

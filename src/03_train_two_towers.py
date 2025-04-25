@@ -78,7 +78,7 @@ def main():
     dt_string = now.strftime("%Y_%m_%d__%H_%M_%S")
     os.makedirs(f"data/checkpoints/{dt_string}/two_towers", exist_ok=True)
 
-    _, evaluate_passages = evaluate.embed_queries_passages(cbow, vocab_to_int, dev, clean_dataset[:1000])
+    evaluate_queries, evaluate_passages = evaluate.embed_queries_passages(cbow, vocab_to_int, dev, clean_dataset[:1000])
     
     for epoch in range(epochs):
         queryTower.train()
@@ -127,16 +127,22 @@ def main():
                 # Call the method in the main function
                 evaluate.evaluate_example_queries(example_queries, evaluate_passages, cbow, vocab_to_int, dev, queryTower, docTower, k=5)
 
+                mean_reciprocal_rank, mean_average_precision, mean_average_recall = evaluate.calculate_metrics(evaluate_queries, evaluate_passages, queryTower, docTower, k=10)
+
+                wandb.log({
+                    "mean_reciprocal_rank": mean_reciprocal_rank,
+                    "mean_average_precision": mean_average_precision,
+                    "mean_average_recall": mean_average_recall,
+                })
+
+                print(f"MRR: {mean_reciprocal_rank}, MAP: {mean_average_precision}, MAR: {mean_average_recall}")
+
         # Save model checkpoints
         doc_tower_path = f"data/checkpoints/{dt_string}/two_towers/doc_tower_epoch_{epoch+1}.pth"
         query_tower_path = f"data/checkpoints/{dt_string}/two_towers/query_tower_epoch_{epoch+1}.pth"
         
         torch.save(docTower.state_dict(), doc_tower_path)
         torch.save(queryTower.state_dict(), query_tower_path)
-
-        # Log validation metrics (if applicable)
-        validation_loss = evaluate.calculate_validation_loss(dataloader, queryTower, docTower, dev)
-        wandb.log({"validation_loss": validation_loss, "epoch": epoch + 1})
 
         # Log embedding distributions
         wandb.log({
