@@ -78,7 +78,7 @@ def main():
     dt_string = now.strftime("%Y_%m_%d__%H_%M_%S")
     os.makedirs(f"data/checkpoints/{dt_string}/two_towers", exist_ok=True)
 
-    evaluate_queries, evaluate_passages = evaluate.embed_queries_passages(cbow, vocab_to_int, dev, clean_dataset[:1000])
+    evaluate_queries, evaluate_passages = evaluate.embed_queries_passages(cbow, vocab_to_int, dev, clean_dataset[:100])
     
     for epoch in range(epochs):
         queryTower.train()
