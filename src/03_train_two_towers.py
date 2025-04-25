@@ -23,7 +23,7 @@ def main():
 
     dev = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    batch_size = 32
+    batch_size = 16
 
     model_path = f"data/models/cbow.{max_lines}lines.{embedding_dim}embeddings.{min_frequency}minfreq.5epochs.pth"
     vocab_to_int = file_utils.load_json(f'data/processed/ms_marco_tkn_word_to_ids_{max_lines}_lines_minfreq_{min_frequency}.json')
@@ -78,9 +78,11 @@ def main():
     dt_string = now.strftime("%Y_%m_%d__%H_%M_%S")
     os.makedirs(f"data/checkpoints/{dt_string}/two_towers", exist_ok=True)
 
-    _, passages = evaluate.embed_queries_passages(cbow, vocab_to_int, dev, clean_dataset)
+    _, evaluate_passages = evaluate.embed_queries_passages(cbow, vocab_to_int, dev, clean_dataset[:1000])
     
     for epoch in range(epochs):
+        queryTower.train()
+        docTower.train()
         prgs = tqdm.tqdm(dataloader, desc=f'Epoch {epoch+1}', leave=False)
         total_loss = 0.0
 
@@ -90,9 +92,9 @@ def main():
             relevant_doc = relevant_doc.to(dev)
             irrelevant_doc = irrelevant_doc.to(dev)
 
-            query = queryTower(query)
-            pos = docTower(relevant_doc)
-            neg = docTower(irrelevant_doc)
+            query = torch.nn.functional.normalize(queryTower(query))
+            pos = torch.nn.functional.normalize(docTower(relevant_doc))
+            neg = torch.nn.functional.normalize(docTower(irrelevant_doc))
             
             loss = contrastive_loss(query, pos, neg, contrastive_loss_margin)
 
@@ -111,18 +113,19 @@ def main():
                 "learning_rate": optimizer.param_groups[0]['lr'],
             })
 
-        example_queries = [
-            "pork products",
-            "was ronald reagan a good president",
-            "who is the ronald reagan",
-            "who is the president of the united states",
-            "poverty",
-            "united states",
-            "united kingdom",
-        ]
+            if i % 100 == 0:
+                example_queries = [
+                    "pork products",
+                    "was ronald reagan a good president",
+                    "who is the ronald reagan",
+                    "who is the president of the united states",
+                    "poverty",
+                    "united states",
+                    "united kingdom",
+                ]
 
-        # Call the method in the main function
-        evaluate.evaluate_example_queries(example_queries, passages, cbow, vocab_to_int, dev, query_tower, doc_tower, k=5)
+                # Call the method in the main function
+                evaluate.evaluate_example_queries(example_queries, evaluate_passages, cbow, vocab_to_int, dev, queryTower, docTower, k=5)
 
         # Save model checkpoints
         doc_tower_path = f"data/checkpoints/{dt_string}/two_towers/doc_tower_epoch_{epoch+1}.pth"

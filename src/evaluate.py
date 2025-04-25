@@ -91,7 +91,7 @@ def evaluate_example_queries(example_queries, passages, cbow, vocab_to_int, dev,
         sorted_dictionary[sim.item()] = batch_passages[j]
 
     # print the top 5 passages
-    print("Top 5 passages for query:", example_query)
+    print("\n\nTop 5 passages for query:", example_query)
     for i, (key, value) in enumerate(reversed(sorted_dictionary.items())):
       if i == 5:
         break
