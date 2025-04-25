@@ -7,7 +7,7 @@ from tqdm import tqdm
 from utils.data_utils import get_raw_dataset, get_clean_dataset, get_tokeniser_dictionaries
 import utils.hf_utils as hf_utils
 
-from b_train_word2vec.model import CBOW
+from model import CBOW
 
 model_path = f"./data/checkpoints/cbow/2025_04_22__10_00_00/cbow.{max_lines}lines.{embedding_dim}embeddings.{min_frequency}minfreq.5epochs.pth"
 clean_dataset_tokenised_file = f"data/processed/ms_marco_clean_tokenised_{max_lines}_lines_minfreq_{min_frequency}.json"

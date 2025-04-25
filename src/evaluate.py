@@ -1,14 +1,54 @@
 from config import *
 
 import torch
-import json
+
 from tqdm import tqdm  # Import tqdm for the progress bar
+
 from model import CBOW
 from model import DocTower
 from model import QueryTower
+
 from sortedcontainers import SortedDict
 
-from utils.loss_utils import contrastive_loss
+from utils import file_utils
+
+def topk(mFoo, vocab_to_int, int_to_vocab, word='computer'):
+  idx = vocab_to_int[word]
+  vec = mFoo.emb.weight[idx].detach()
+  with torch.no_grad():
+    vec = torch.nn.functional.normalize(vec.unsqueeze(0), p=2, dim=1)
+    emb = torch.nn.functional.normalize(mFoo.emb.weight.detach(), p=2, dim=1)
+    sim = torch.matmul(emb, vec.squeeze())
+    top_val, top_idx = torch.topk(sim, 6)
+    print(f'\nTop 5 words similar to "{word}":')
+    count = 0
+    for i, idx in enumerate(top_idx):
+      if i == 0: continue
+      word = int_to_vocab[str(idx.item())]
+      sim = top_val[i].item()
+      print(f'  {word}: {sim:.4f}')
+      count += 1
+      if count == 5: break
+
+def evaluate_word_2_vec():
+  # Load the vocab_to_int and int_to_vocab dictionaries
+  vocab_to_int = file_utils.load_json('data/processed/ms_marco_tkn_word_to_ids_82326_lines_minfreq_5.json')
+  int_to_vocab = file_utils.load_json('data/processed/ms_marco_tkn_ids_to_words_82326_lines_minfreq_5.json')
+
+  # Initialize the CBOW model
+  cbow = CBOW(len(vocab_to_int), embedding_dim)
+
+  # Load the state_dict into the model
+  state_dict = torch.load('data/models/cbow.82326lines.256embeddings.5minfreq.5epochs.pth')
+  cbow.load_state_dict(state_dict)
+
+  cbow.eval()
+  cbow.to('cpu')
+
+  example_words = list(vocab_to_int.keys())[:10]  # Replace with your own list of words
+
+  for word in example_words:
+    topk(cbow, vocab_to_int, int_to_vocab, word)
 
 clean_dataset_file = f"data/processed/ms_marco_clean_{max_lines}_lines.json"
 word_to_ids_file = f"data/processed/ms_marco_tkn_word_to_ids_{max_lines}_lines_minfreq_{min_frequency}.json"
@@ -110,8 +150,7 @@ def calculate_metrics(queries, passages, query_tower, doc_tower, k=10):
 
 def evaluate_two_towers():
   
-  with open(word_to_ids_file, "r") as f:
-    vocab_to_int = json.load(f)
+  vocab_to_int = file_utils.load_json(word_to_ids_file)
 
   dev = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -133,8 +172,7 @@ def evaluate_two_towers():
   query_tower.eval()
   query_tower.to(dev)
 
-  with open(clean_dataset_file, "r") as f:
-    clean_dataset = json.load(f)
+  clean_dataset = file_utils.load_json(clean_dataset_file)
 
   queries = {}
   passages = []
@@ -164,5 +202,6 @@ def evaluate_two_towers():
 
   calculate_metrics(queries, passages, query_tower, doc_tower, k=10)
 
-if __name__ == "__main__":
-  evaluate_two_towers()
+if __name__ == '__main__':
+  evaluate_word_2_vec()
+  print("Evaluation complete.")

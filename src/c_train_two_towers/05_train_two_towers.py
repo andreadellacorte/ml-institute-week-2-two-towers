@@ -8,14 +8,16 @@ import json
 import tqdm
 import utils.hf_utils as hf_utils
 
-import c_train_two_towers.dataset as dataset
-from c_train_two_towers.doc_tower import DocTower
-from c_train_two_towers.query_tower import QueryTower
+from dataset import MarcoTWOTOWERS
+from model import DocTower
+from model import QueryTower
 
 from utils.loss_utils import contrastive_loss
 import wandb  # Add wandb import
 
 def main():
+    ts = datetime.datetime.now().strftime('%Y_%m_%d__%H_%M_%S')
+
     traning_data_file = f"data/processed/ms_marco_training_data_{max_lines}_lines_minfreq_{min_frequency}.json"
     
     with open(traning_data_file, "r") as f:
@@ -25,7 +27,7 @@ def main():
 
     batch_size = 32
 
-    dFoo = dataset.MarcoTWOTOWERS(training_data)
+    dFoo = MarcoTWOTOWERS(training_data)
     dataloader = torch.utils.data.DataLoader(dFoo, batch_size=batch_size, shuffle=True)
     
     docTower = DocTower(embedding_dim)
